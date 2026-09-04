@@ -46,10 +46,6 @@
             color: #1A1A1A;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
-            padding-bottom: calc(64px + env(safe-area-inset-bottom));
-        }
-        @media (min-width: 768px) {
-            body { padding-bottom: 0; }
         }
 
         ::-webkit-scrollbar { width: 6px; }
@@ -69,6 +65,22 @@
         }
         @media (min-width: 1600px) {
             .text-fluid-hero-wide { font-size: 10rem; }
+        }
+
+        /* A phone rotated to landscape is wide enough to cross the md: breakpoint (so it gets the
+           desktop nav) but only ~350-430px TALL — nothing like an actual desktop, which is always wide
+           AND tall. The heading's clamp() only reacts to width, so on this width it sizes itself as if
+           there were plenty of height to spare, overflows the fixed-height hero, and ends up
+           overlapping the fixed nav above it. This catches short viewports specifically (any width,
+           any device) and shrinks/repositions things so nothing overlaps, with min-height as a safety
+           net so even an unanticipated extreme case scrolls instead of clipping. */
+        @media (max-height: 500px) {
+            #hero { height: auto !important; min-height: 100dvh; }
+            #hero .text-fluid-hero-wide { font-size: clamp(1.75rem, 3rem + 2vh, 3.25rem) !important; line-height: 1.1 !important; }
+            #hero-content { padding-top: 5.5rem; padding-bottom: 2rem !important; }
+            #hero-content .hero-fade-up-d1 { margin-bottom: 0.5rem !important; }
+            #hero-content .hero-fade-up-d3:first-of-type { margin-top: 1rem !important; }
+            #hero-content .hero-fade-up-d3 + .hero-fade-up-d3 { margin-top: 1rem !important; padding-top: 0.75rem !important; }
         }
 
         /* Mobile only: the source photo is landscape, so a portrait crop keeps only a narrow vertical
@@ -313,6 +325,16 @@
         #navbar.on-dark .nav-link.active:hover { color: #1A1A1A; }
         #navbar.on-dark .nav-book-btn { background-color: #F9F9F8; color: #1A1A1A; }
 
+        /* Blur strength itself is graduated via a mask (strong at the very top, gone by the bottom of
+           the strip) — a flat, uniform blur across the whole strip would leave a visible hard edge at
+           its lower boundary instead of tapering off naturally. */
+        .nav-top-scrim {
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            mask-image: linear-gradient(to bottom, black 0%, black 35%, transparent 85%);
+            -webkit-mask-image: linear-gradient(to bottom, black 0%, black 35%, transparent 85%);
+        }
+
         /* Footer scroll-car: same dark/light inversion as the navbar, using the same on-dark class —
            the car is dark-on-light by default, which disappears against the dark Numbers/Testimonials
            sections (and the pinned hero image) it also travels over. */
@@ -326,14 +348,9 @@
         /* Mobile menu */
         #mobile-menu { transition: opacity 0.4s ease, visibility 0.4s ease; }
 
-        /* Sticky, understated mobile contact strip — text, not chunky buttons */
-        #mobile-bar { padding-bottom: env(safe-area-inset-bottom); }
-
-        /* Scroll car position: sits above the mobile contact strip, flush to the bottom on desktop */
-        #scroll-car-container { bottom: calc(64px + env(safe-area-inset-bottom)); }
-        @media (min-width: 768px) {
-            #scroll-car-container { bottom: 0; }
-        }
+        /* Flush to the bottom (respecting the safe area on notched phones) on every breakpoint now
+           that there's no mobile contact strip for it to clear. */
+        #scroll-car-container { bottom: env(safe-area-inset-bottom); }
 
         /* Accessible focus states, kept in the site's own ink color rather than a bright blue */
         a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible {
@@ -368,6 +385,14 @@
 <body class="font-body selection:bg-stone-900 selection:text-white">
 
     <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:bg-stone-900 focus:text-stone-50 focus:px-4 focus:py-2 focus:rounded-full focus:text-sm focus:font-medium">Skip to content</a>
+
+    <!-- Progressive blur behind the floating nav pill: content that scrolls past isn't fully hidden by
+         it (it's a pill, not a full-width bar, so text/images are visible in the margins around and
+         through the gap above it) — this softens that instead of a hard, unmasked edge. A blur (not a
+         color-matched gradient) so it looks right over any section's background, dark or light, without
+         needing to track what's currently behind it. Strongest right at the top, fading to nothing by
+         the pill's bottom edge; pointer-events-none so it never blocks taps on the nav or the page. -->
+    <div class="fixed top-0 inset-x-0 w-full h-28 z-40 pointer-events-none nav-top-scrim" aria-hidden="true"></div>
 
     <nav class="fixed top-4 md:top-6 inset-x-4 md:inset-x-8 z-50 mx-auto max-w-4xl bg-stone-100 rounded-full shadow-lg shadow-stone-900/10 flex items-center justify-between gap-3 pl-2 pr-2.5 py-2 md:pl-3 md:pr-3 md:py-2.5" id="navbar">
         <a href="#" class="flex items-center gap-2 shrink-0">
@@ -430,10 +455,10 @@
              100dvh (not 100vh) so mobile browsers size this to the actually-visible viewport — 100vh
              includes the area behind the collapsible address bar, which pushed the bottom-anchored
              CTA down into the same screen position as the fixed WhatsApp button and scroll-car. -->
-        <section class="h-screen relative flex flex-col justify-end" style="height: 100dvh;">
+        <section id="hero" class="h-screen relative flex flex-col justify-end" style="height: 100dvh;">
             <div class="absolute inset-0 z-[-1] hero-gradient" style="background: linear-gradient(to bottom, transparent 30%, rgba(240, 239, 234, 0.85) 75%, rgba(240, 239, 234, 1) 100%);"></div>
 
-            <div class="relative z-10 px-5 md:px-12 pb-32 md:pb-24 w-full text-center md:text-left">
+            <div id="hero-content" class="relative z-10 px-5 md:px-12 pb-32 md:pb-24 w-full text-center md:text-left">
                 <p class="hero-fade-up hero-fade-up-d1 font-display tracking-widest uppercase text-sm mb-6 md:mb-10 text-stone-500">Est. 2000</p>
                 <h1 class="hero-fade-up hero-fade-up-d2 font-body font-extrabold text-fluid-hero-wide text-stone-900 tracking-tighter">
                     <span class="block whitespace-nowrap">Cars On Rent.</span>
@@ -689,8 +714,11 @@
                         </div>
 
                         <span class="text-[9px] md:text-xs uppercase tracking-[0.4em] text-stone-500 font-semibold mb-6 block">( 03. Our Story )</span>
+                        <!-- Two lines on mobile ("Moving people" / "since 2000.") instead of four, so
+                             the sticky header takes up less vertical room and leaves more space for the
+                             story text beside it — desktop keeps its original four-line break. -->
                         <h2 class="font-body font-black text-5xl md:text-7xl lg:text-8xl tracking-tighter text-stone-900 leading-[0.9]">
-                            Moving<br>people<br>since<br>2000.
+                            Moving <br class="hidden md:block">people<br>since <br class="hidden md:block">2000.
                         </h2>
                     </div>
                 </div>
@@ -918,15 +946,8 @@
         </footer>
     </main>
 
-    <!-- Sticky mobile contact strip: text only, no chunky buttons -->
-    <div id="mobile-bar" class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-stone-900 text-stone-50 border-t border-stone-900 grid grid-cols-3 text-xs tracking-widest uppercase divide-x divide-stone-50/15">
-        <a href="tel:+918090202020" class="flex items-center justify-center gap-2 py-4 min-h-[44px]"><i class="ph ph-phone"></i> Call</a>
-        <a href="https://wa.me/918090202020" target="_blank" rel="noopener" class="flex items-center justify-center gap-2 py-4 min-h-[44px]"><i class="ph ph-whatsapp-logo"></i> WhatsApp</a>
-        <button type="button" onclick="focusEnquiryForm()" class="flex items-center justify-center gap-2 py-4 min-h-[44px]"><i class="ph ph-envelope-simple"></i> Enquire</button>
-    </div>
-
-    <!-- WhatsApp FAB: pinned bottom-right on every page, above the road-car band and mobile contact strip. -->
-    <a href="https://wa.me/918090202020?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20vehicle." target="_blank" rel="noopener" aria-label="Chat with us on WhatsApp" class="fixed right-4 md:right-6 bottom-32 md:bottom-16 z-40 w-14 h-14 rounded-full bg-[#25D366] text-white flex items-center justify-center shadow-lg hover:scale-105 transition-transform">
+    <!-- WhatsApp FAB: pinned bottom-right on every page, above the road-car band. -->
+    <a href="https://wa.me/918090202020?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20a%20vehicle." target="_blank" rel="noopener" aria-label="Chat with us on WhatsApp" class="fixed right-4 md:right-6 bottom-16 z-40 w-14 h-14 rounded-full bg-[#25D366] text-white flex items-center justify-center shadow-lg hover:scale-105 transition-transform">
         <span class="absolute inset-0 rounded-full bg-[#25D366] animate-ping opacity-40" aria-hidden="true"></span>
         <i class="ph-fill ph-whatsapp-logo text-3xl relative"></i>
     </a>
@@ -1498,10 +1519,6 @@
             modal.classList.add('hidden');
             modal.classList.remove('flex');
             document.body.style.overflow = '';
-        }
-
-        function focusEnquiryForm() {
-            document.getElementById('book').scrollIntoView({ behavior: 'smooth' });
         }
 
         function toggleMobileMenu() {
