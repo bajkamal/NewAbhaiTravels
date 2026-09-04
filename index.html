@@ -147,10 +147,14 @@
             }
             @keyframes heroFadeUpMobile { to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
 
-            /* Content is centered on mobile (not bottom-anchored like desktop), so the fade needs to
-               finish well before the text instead of gradually across the whole hero — otherwise the
-               image is still showing through behind the subtext and button. */
-            .hero-gradient { background: linear-gradient(to bottom, transparent 22%, rgba(240, 239, 234, 0.75) 50%, rgba(240, 239, 234, 1) 70%) !important; }
+            /* Percentage-based stops (the desktop default) scale with the section's own height, which
+               is 100dvh — but the text block's own height is roughly fixed regardless of device. On a
+               tall phone (iPhone Plus/Max class) the same percentages push the opaque zone far below
+               where the heading actually sits, leaving it over bare image instead of the white fade.
+               Anchoring the stops to a fixed pixel distance from the BOTTOM instead keeps the opaque
+               "landing zone" the same height on every phone, tall or short, so the heading always
+               lands on it the same way it does on desktop. */
+            .hero-gradient { background: linear-gradient(to bottom, transparent calc(100% - 680px), rgba(240, 239, 234, 0.85) calc(100% - 480px), rgba(240, 239, 234, 1) calc(100% - 380px)) !important; }
         }
 
         /* Every photo on the site shares one desaturated, contrast-boosted treatment — reads as one
@@ -174,7 +178,13 @@
 
         /* Fleet browsing: a swipable row on mobile (easier one-handed than a tall stack), switching to
            a wrapping grid from md up so every vehicle is visible at once with no scrolling. */
-        .fleet-grid { display: flex; gap: 1.25rem; overflow-x: auto; scroll-snap-type: x mandatory; padding: 0.25rem 0.25rem 0.75rem; margin: -0.25rem -0.25rem 0; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
+        /* touch-action: pan-x pan-y (not just pan-x) — a lone pan-x tells the browser this element
+           ONLY ever pans horizontally, which blocks vertical page-scroll outright for any touch that
+           happens to start on a card (exactly where a thumb scrolling down the page will often land).
+           Allowing both lets the browser's own gesture recognizer pick the axis that matches the
+           swipe's actual direction: horizontal drags move the card row, vertical drags keep scrolling
+           the page normally, same as everywhere else on the site. */
+        .fleet-grid { display: flex; gap: 1.25rem; overflow-x: auto; scroll-snap-type: x mandatory; padding: 0.25rem 0.25rem 0.75rem; margin: -0.25rem -0.25rem 0; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; }
         .fleet-card { flex: 0 0 auto; scroll-snap-align: start; width: min(80vw, 300px); }
         @media (min-width: 768px) {
             /* auto-fill (not auto-fit): keeps card width consistent even when a filter leaves only
@@ -476,7 +486,12 @@
                 </div>
 
                 <!-- Cars / Buses toggle -->
-                <div class="flex items-center gap-1 border border-stone-300 w-fit mb-10 reveal rounded-full overflow-hidden bg-white" role="tablist" aria-label="Vehicle category">
+                <!-- items-stretch (the flex default), not items-center: "Tempo & Coaches" wraps to two
+                     lines on narrow screens, making this row taller than a single-line label's own
+                     height — stretch makes both buttons fill that full height so neither leaves a gap
+                     above/below, instead of the taller one setting the row height and the shorter one
+                     just floating centered inside it. -->
+                <div class="flex gap-1 border border-stone-300 w-fit mb-10 reveal rounded-full overflow-hidden bg-white" role="tablist" aria-label="Vehicle category">
                     <button id="tab-car" role="tab" aria-selected="true" onclick="setCategory('car')" class="flex items-center gap-2 min-h-[44px] px-6 py-3 text-sm font-semibold tracking-wide uppercase bg-stone-900 text-stone-50 hover:text-stone-900 transition-colors"><i class="ph-fill ph-car"></i> Automobiles</button>
                     <button id="tab-bus" role="tab" aria-selected="false" onclick="setCategory('bus')" class="flex items-center gap-2 min-h-[44px] px-6 py-3 text-sm font-semibold tracking-wide uppercase text-stone-500 hover:text-stone-900 transition-colors"><i class="ph-fill ph-bus"></i> Tempo &amp; Coaches</button>
                 </div>
@@ -969,7 +984,13 @@
                     <!-- Full modal width, not a half-width column: at exactly the source photos' own
                          4:3 ratio, so object-cover never has to crop anything away — the whole photo
                          shows edge-to-edge, and the details below simply continue underneath it. -->
-                    <img id="modal-img" src="" alt="" class="w-full h-full object-cover editorial-img">
+                    <img id="modal-img" src="" alt="" class="w-full h-full object-cover editorial-img transition-opacity duration-300">
+                    <!-- Shown whenever modal-img is mid-load (see setMainImage) — most of the time this
+                         never becomes visible at all, since the card-visibility prefetch below already
+                         has the photo cached by the time someone actually opens the modal. -->
+                    <div id="modal-img-loader" class="hidden absolute inset-0 z-[5] flex items-center justify-center bg-stone-100">
+                        <span class="w-8 h-8 rounded-full border-2 border-stone-300 border-t-stone-900 animate-spin"></span>
+                    </div>
                     <span id="modal-tag" class="absolute top-6 left-6 z-10 px-3 py-1 rounded-full bg-stone-900 text-stone-50 text-[10px] tracking-widest uppercase"></span>
                     <div id="modal-gallery" class="hidden absolute bottom-0 inset-x-0 z-10 flex gap-2 justify-start flex-wrap p-4 bg-gradient-to-t from-stone-900/70 to-transparent"></div>
                 </div>
@@ -1058,6 +1079,38 @@
             if (!item.variants) return null;
             return item.variants.find(v => v.isPopular) || item.variants[0];
         }
+
+        // Every photo path a vehicle could possibly show — its own images/image plus every variant's —
+        // so the modal never has to fetch anything it hasn't already started fetching in the background.
+        function getAllImageSources(item) {
+            const sources = [];
+            if (item.images) sources.push(...item.images);
+            if (item.image) sources.push(item.image);
+            if (item.variants) {
+                item.variants.forEach(v => {
+                    if (v.images) sources.push(...v.images);
+                    if (v.image) sources.push(v.image);
+                });
+            }
+            return sources;
+        }
+
+        function preloadVehicleImages(item) {
+            getAllImageSources(item).forEach(src => { new Image().src = src; });
+        }
+
+        // Starts fetching a vehicle's full photo set as soon as its card scrolls near the viewport —
+        // well before anyone could realistically tap "View Details" — so the modal opens on photos
+        // that are already cached instead of ones the browser has never requested yet. Cards get a
+        // ~300px head start (rootMargin) so the fetch is already underway by the time a card is
+        // actually on screen, not just starting the instant it appears.
+        const cardPreloadObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) return;
+                preloadVehicleImages(entry.target._vehicleItem);
+                cardPreloadObserver.unobserve(entry.target);
+            });
+        }, { rootMargin: '300px' });
 
         const typeLabels = {
             car: { all: 'All', mpv: 'MPV', sedan: 'Sedan', hatchback: 'Hatchback', suv: 'SUV' },
@@ -1250,6 +1303,8 @@
                     </div>
                 `;
                 grid.appendChild(card);
+                card._vehicleItem = item;
+                cardPreloadObserver.observe(card);
             });
         }
 
@@ -1266,9 +1321,25 @@
         }
 
         // --- Vehicle Detail Modal ---
+        // Sets modal-img's source with a loading spinner for the (rare, thanks to the prefetch-on-
+        // scroll below) case where the photo isn't already cached by the time it's needed.
+        function setMainImage(src) {
+            const modalImg = document.getElementById('modal-img');
+            const loader = document.getElementById('modal-img-loader');
+            if (modalImg.src.endsWith(src)) return;
+            loader.classList.remove('hidden');
+            modalImg.classList.add('opacity-0');
+            modalImg.onload = () => {
+                loader.classList.add('hidden');
+                modalImg.classList.remove('opacity-0');
+            };
+            modalImg.onerror = () => loader.classList.add('hidden');
+            modalImg.src = src;
+        }
+
         // Switches the modal's main image and moves the active-border highlight to the clicked thumb.
         function setModalImage(src, btn) {
-            document.getElementById('modal-img').src = src;
+            setMainImage(src);
             document.querySelectorAll('.modal-thumb').forEach(t => t.classList.remove('border-stone-900'));
             document.querySelectorAll('.modal-thumb').forEach(t => t.classList.add('border-transparent'));
             btn.classList.remove('border-transparent');
@@ -1285,7 +1356,7 @@
             const galleryEl = document.getElementById('modal-gallery');
             if (source.images && source.images.length > 1) {
                 const galleryImages = source.images.slice(1);
-                modalImg.src = galleryImages[0];
+                setMainImage(galleryImages[0]);
                 galleryEl.innerHTML = galleryImages.map((src, i) => `
                     <button type="button" onclick="setModalImage('${src}', this)" aria-label="Show photo ${i + 1}" class="modal-thumb w-14 h-14 rounded-lg overflow-hidden border-2 ${i === 0 ? 'border-stone-900' : 'border-transparent'} shrink-0">
                         <img src="${src}" alt="" class="w-full h-full object-cover">
@@ -1293,7 +1364,7 @@
                 `).join('');
                 galleryEl.classList.remove('hidden');
             } else {
-                modalImg.src = source.image;
+                setMainImage(source.image);
                 galleryEl.classList.add('hidden');
                 galleryEl.innerHTML = '';
             }
