@@ -184,7 +184,13 @@
            Allowing both lets the browser's own gesture recognizer pick the axis that matches the
            swipe's actual direction: horizontal drags move the card row, vertical drags keep scrolling
            the page normally, same as everywhere else on the site. */
-        .fleet-grid { display: flex; gap: 1.25rem; overflow-x: auto; scroll-snap-type: x mandatory; padding: 0.25rem 0.25rem 0.75rem; margin: -0.25rem -0.25rem 0; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; }
+        .fleet-grid { display: flex; gap: 1.25rem; overflow-x: auto; scroll-snap-type: x mandatory; padding: 0.25rem 0.25rem 0.75rem; margin: -0.25rem -0.25rem 0; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; scrollbar-width: auto; scrollbar-color: #1A1A1A #E5E3DC; }
+        /* Real native scrollbar styling for browsers that actually support it (desktop, Android
+           Chrome) — iOS Safari ignores this entirely and always uses its own auto-hiding overlay
+           regardless, which is what the separate always-visible #fleet-scroll-thumb bar is for. */
+        .fleet-grid::-webkit-scrollbar { height: 8px; }
+        .fleet-grid::-webkit-scrollbar-track { background: #E5E3DC; border-radius: 999px; }
+        .fleet-grid::-webkit-scrollbar-thumb { background: #1A1A1A; border-radius: 999px; }
         .fleet-card { flex: 0 0 auto; scroll-snap-align: start; width: min(80vw, 300px); }
         @media (min-width: 768px) {
             /* auto-fill (not auto-fit): keeps card width consistent even when a filter leaves only
@@ -529,6 +535,14 @@
                     <!-- Mobile only: an animated hand demonstrates the swipe rather than just describing
                          it in text — dismissed the first time someone actually scrolls or touches the row. -->
                     <div id="swipe-hint-hand" class="md:hidden absolute top-16 left-1/2 -translate-x-1/2 swipe-hand-anim pointer-events-none text-3xl" aria-hidden="true">👆</div>
+                </div>
+                <!-- Mobile only: a custom, always-visible scroll indicator for the card row above — not
+                     the browser's native scrollbar, which iOS Safari doesn't allow styling (it only ever
+                     shows its own thin, auto-hiding overlay, no matter what CSS is applied to it). This
+                     stays visible permanently, unlike the one-time swipe hint below, whose thumb width
+                     reflects how much of the row is visible and slides to track real scroll position. -->
+                <div class="md:hidden relative h-2 bg-stone-200 rounded-full overflow-hidden mt-4" aria-hidden="true">
+                    <div id="fleet-scroll-thumb" class="absolute inset-y-0 left-0 h-full bg-stone-900 rounded-full" style="width: 100%;"></div>
                 </div>
                 <p id="empty-state" class="hidden text-stone-500 font-light py-16">No vehicles match that filter right now. <a href="#book" class="link-underline text-stone-900">Enquire</a> and we'll see what we can arrange.</p>
 
@@ -1257,6 +1271,7 @@
 
             if (items.length === 0) {
                 empty.classList.remove('hidden');
+                updateFleetScrollThumb();
                 return;
             }
             empty.classList.add('hidden');
@@ -1306,6 +1321,48 @@
                 card._vehicleItem = item;
                 cardPreloadObserver.observe(card);
             });
+
+            updateFleetScrollThumb();
+        }
+
+        // Custom, always-visible scroll indicator for the mobile card row — a real element rather
+        // than a styled native scrollbar, since iOS Safari doesn't allow customizing (or even
+        // permanently showing) its own scrollbar for an overflow container. Thumb width mirrors how
+        // much of the row is currently visible; its position mirrors actual scroll progress, same as
+        // a real scrollbar would.
+        function updateFleetScrollThumb() {
+            const grid = document.getElementById('fleet-grid');
+            const thumb = document.getElementById('fleet-scroll-thumb');
+            if (!grid || !thumb) return;
+            const track = thumb.parentElement;
+            const trackWidth = track.clientWidth;
+            const maxScroll = grid.scrollWidth - grid.clientWidth;
+
+            if (maxScroll <= 0) {
+                thumb.style.width = '100%';
+                thumb.style.left = '0px';
+                return;
+            }
+
+            const thumbWidth = Math.max(trackWidth * 0.15, (grid.clientWidth / grid.scrollWidth) * trackWidth);
+            const maxThumbTravel = trackWidth - thumbWidth;
+            const scrollFraction = grid.scrollLeft / maxScroll;
+
+            thumb.style.width = thumbWidth + 'px';
+            thumb.style.left = (scrollFraction * maxThumbTravel) + 'px';
+        }
+
+        function initFleetScrollThumb() {
+            const grid = document.getElementById('fleet-grid');
+            if (!grid) return;
+            let ticking = false;
+            const onScroll = () => {
+                if (ticking) return;
+                ticking = true;
+                requestAnimationFrame(() => { updateFleetScrollThumb(); ticking = false; });
+            };
+            grid.addEventListener('scroll', onScroll, { passive: true });
+            window.addEventListener('resize', onScroll, { passive: true });
         }
 
         // --- Mobile filter sheet ---
@@ -1507,9 +1564,12 @@
         // Y-position dark? True for the two dark-background sections (Numbers, Testimonials), and also
         // true near the top of the page before Fleet's solid fill has scrolled up far enough to cover
         // the pinned hero image (which is fairly dark) at that position.
+        // Queried once, not on every scroll tick — the set of dark sections is static, so re-running
+        // querySelectorAll 120 times a second during a fast flick was pure wasted work.
+        const darkSectionEls = document.querySelectorAll('.dark-section');
+
         function isScreenYOverDark(y) {
-            const darkSections = document.querySelectorAll('.dark-section');
-            const overDarkSection = Array.from(darkSections).some(section => {
+            const overDarkSection = Array.from(darkSectionEls).some(section => {
                 const r = section.getBoundingClientRect();
                 return r.top <= y && r.bottom >= y;
             });
@@ -1537,8 +1597,19 @@
                 }
             };
 
-            window.addEventListener('scroll', update, { passive: true });
-            window.addEventListener('resize', update, { passive: true });
+            // rAF-throttled: raw `scroll` events can fire far faster than the screen actually
+            // repaints, especially mid-flick on a phone — running these getBoundingClientRect reads
+            // on every single one of them (uncapped) is exactly what shows up as scroll jank. This
+            // caps the work to once per rendered frame, and coalesces any extra events in between.
+            let ticking = false;
+            const onScroll = () => {
+                if (ticking) return;
+                ticking = true;
+                requestAnimationFrame(() => { update(); ticking = false; });
+            };
+
+            window.addEventListener('scroll', onScroll, { passive: true });
+            window.addEventListener('resize', onScroll, { passive: true });
             update();
         }
 
@@ -1598,6 +1669,14 @@
         let wheelRot = 0;
         let scrollCarTimer = null;
 
+        // Looked up once — these elements are static, so re-querying them (including a
+        // querySelectorAll) on every single scroll tick was extra work this hot path doesn't need.
+        const scrollRoadFillEl = document.getElementById('scroll-road-fill');
+        const scrollCarXEl = document.getElementById('scroll-car-x');
+        const scrollCarSuspensionEl = document.getElementById('scroll-car-suspension');
+        const carWindEl = document.getElementById('car-wind');
+        const carWheelEls = document.querySelectorAll('.car-wheel');
+
         function updateScrollCar() {
             const currentScrollY = window.scrollY;
             const deltaY = currentScrollY - lastScrollY;
@@ -1612,8 +1691,8 @@
             const maxTranslate = window.innerWidth - 48; // 48px is the SVG width
             const currentX = scrollFraction * maxTranslate;
 
-            document.getElementById('scroll-road-fill').style.transform = `scaleX(${scrollFraction})`;
-            document.getElementById('scroll-car-x').style.transform = `translate3d(${currentX}px, 0, 0)`;
+            scrollRoadFillEl.style.transform = `scaleX(${scrollFraction})`;
+            scrollCarXEl.style.transform = `translate3d(${currentX}px, 0, 0)`;
 
             // 2. Physics & Direction
             if (Math.abs(deltaY) > 0.5) {
@@ -1630,16 +1709,16 @@
                 const speed = Math.abs(deltaY);
                 const tilt = Math.max(speed * -0.2, -12);
 
-                document.getElementById('scroll-car-suspension').style.transform = `scaleX(${carDirection}) rotateZ(${tilt}deg)`;
+                scrollCarSuspensionEl.style.transform = `scaleX(${carDirection}) rotateZ(${tilt}deg)`;
 
                 // Show wind streaks if moving fast
-                document.getElementById('car-wind').style.opacity = speed > 15 ? '1' : '0';
+                carWindEl.style.opacity = speed > 15 ? '1' : '0';
 
                 // Reset physics when scrolling stops
                 clearTimeout(scrollCarTimer);
                 scrollCarTimer = setTimeout(() => {
-                    document.getElementById('scroll-car-suspension').style.transform = `scaleX(${carDirection}) rotateZ(0deg)`;
-                    document.getElementById('car-wind').style.opacity = '0';
+                    scrollCarSuspensionEl.style.transform = `scaleX(${carDirection}) rotateZ(0deg)`;
+                    carWindEl.style.opacity = '0';
                 }, 100);
             }
 
@@ -1647,7 +1726,7 @@
             // Add global rotation. By passing scaleX(carDirection) to the child wheel,
             // we perfectly cancel the parent's flip, fixing the "backward spinning" illusion!
             wheelRot += deltaY * 1.5;
-            document.querySelectorAll('.car-wheel').forEach(wheel => {
+            carWheelEls.forEach(wheel => {
                 wheel.style.transform = `scaleX(${carDirection}) rotate(${wheelRot}deg)`;
             });
         }
@@ -1659,11 +1738,21 @@
             initNavSpy();
             initNavContrast();
             initSwipeHintDismiss();
+            initFleetScrollThumb();
             initAboutStorytelling();
 
-            // Init scroll car animation
-            window.addEventListener('scroll', updateScrollCar, { passive: true });
-            window.addEventListener('resize', updateScrollCar, { passive: true });
+            // Init scroll car animation — rAF-throttled for the same reason as the navbar contrast
+            // listener above: this one is even heavier (a scrollHeight read, several getElementById
+            // + style writes, and a querySelectorAll+loop over every wheel), so running it uncapped
+            // on raw scroll events was likely the single biggest source of the reported scroll jank.
+            let scrollCarTicking = false;
+            const onScrollCar = () => {
+                if (scrollCarTicking) return;
+                scrollCarTicking = true;
+                requestAnimationFrame(() => { updateScrollCar(); scrollCarTicking = false; });
+            };
+            window.addEventListener('scroll', onScrollCar, { passive: true });
+            window.addEventListener('resize', onScrollCar, { passive: true });
             updateScrollCar();
 
             // Escape closes whichever overlay is open: video, modal, filter sheet, or mobile nav.
