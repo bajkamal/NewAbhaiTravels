@@ -641,7 +641,17 @@
                  sliver of every earlier card stays visible above the one on top, reading as an actual
                  stacked deck rather than the new card just erasing the last. A small animated cursor
                  "clicks" the relevant spot in each mockup so it reads as something happening, not just a
-                 static screenshot. -->
+                 static screenshot.
+
+                 The trailing spacer after card 3 (below) isn't decorative spacing — with three sticky
+                 siblings sharing one flow parent, the browser releases an EARLIER card from its pinned
+                 position based on how close the whole shared parent's bottom edge is, not just that
+                 card's own next sibling. Without the spacer, cards 1 and 2 got released early (in
+                 lockstep, oddly) right as card 3 was approaching its own pin point, which cut card 3's
+                 peek-of-card-2 short and made the last handoff visibly bigger/uneven than the first.
+                 Giving the shared parent more room at the very end (after the last card, where it doesn't
+                 affect anything else) delays that shared release point past card 3's peek, so both
+                 handoffs end up with the same sliver. -->
             <div class="max-w-4xl mx-auto">
                 <!-- Step 1: paired with a mini fleet card, since that's literally what "choosing" looks like. -->
                 <div class="sticky top-[14vh] z-10 mb-24 md:mb-32 min-h-[540px] flex items-center md:min-h-[340px] reveal reveal-delay-1 bg-stone-100 border-4 border-stone-50 rounded-xl p-6 md:p-8 shadow-lg">
@@ -718,6 +728,8 @@
                         </div>
                     </div>
                 </div>
+                <!-- Fixes the stacking symmetry, not decorative — see the comment above the card list. -->
+                <div class="h-48 md:h-64" aria-hidden="true"></div>
             </div>
             </div>
         </section>
