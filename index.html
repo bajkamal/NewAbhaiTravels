@@ -58,24 +58,30 @@
         .text-fluid-h2 { font-size: clamp(1.875rem, 1.1rem + 4vw, 4.5rem); line-height: 1.1; letter-spacing: -0.02em; }
 
         /* Sized so "Cars On Rent." never wraps onto a second line — capped conservatively, then
-           bumped once there's enough viewport width to grow further without risking a wrap. */
-        .text-fluid-hero-wide { font-size: clamp(2.5rem, 1.4rem + 9.5vw, 8.5rem); line-height: 1.05; letter-spacing: -0.05em; }
+           bumped once there's enough viewport width to grow further without risking a wrap.
+           The min(..., 1rem + 15vh) term is what makes this height-aware, not just width-aware: on
+           a laptop with plenty of width but limited height (a real browser window at 1366×768, once
+           its own toolbars/bookmarks bar eat into that), the plain width-based formula doesn't know
+           the screen is short and sizes the heading as if there were room to spare, overflowing the
+           hero and overlapping the fixed navbar above it. The height term only takes over once height
+           is actually the tighter constraint — at the reference desktop sizes (1440×900, 1920×1080)
+           it's never the smaller of the two, so the rendered size there is unchanged from before. */
+        .text-fluid-hero-wide { font-size: clamp(2.5rem, min(1.4rem + 9.5vw, 1rem + 15vh), 8.5rem); line-height: 1.05; letter-spacing: -0.05em; }
         @media (min-width: 768px) {
             .text-fluid-hero-wide { line-height: 0.95; }
         }
         @media (min-width: 1600px) {
-            .text-fluid-hero-wide { font-size: 10rem; }
+            .text-fluid-hero-wide { font-size: min(10rem, 1rem + 15vh); }
         }
 
         /* A phone rotated to landscape is wide enough to cross the md: breakpoint (so it gets the
            desktop nav) but only ~350-430px TALL — nothing like an actual desktop, which is always wide
-           AND tall. The heading's clamp() only reacts to width, so on this width it sizes itself as if
-           there were plenty of height to spare, overflows the fixed-height hero, and ends up
-           overlapping the fixed nav above it. This catches short viewports specifically (any width,
-           any device) and shrinks/repositions things so nothing overlaps, with min-height as a safety
-           net so even an unanticipated extreme case scrolls instead of clipping. */
+           AND tall. Even the min(...vh) term above only shrinks the heading so far (its own floor is
+           2.5rem); below 500px of height that's still too large relative to the very tight vertical
+           space, so this trims it further and tightens up the surrounding spacing to match. #hero's
+           min-height (set unconditionally now, not just here) remains the ultimate safety net for
+           anything even this doesn't fully account for. */
         @media (max-height: 500px) {
-            #hero { height: auto !important; min-height: 100dvh; }
             #hero .text-fluid-hero-wide { font-size: clamp(1.75rem, 3rem + 2vh, 3.25rem) !important; line-height: 1.1 !important; }
             #hero-content { padding-top: 5.5rem; padding-bottom: 2rem !important; }
             #hero-content .hero-fade-up-d1 { margin-bottom: 0.5rem !important; }
@@ -196,13 +202,12 @@
            Allowing both lets the browser's own gesture recognizer pick the axis that matches the
            swipe's actual direction: horizontal drags move the card row, vertical drags keep scrolling
            the page normally, same as everywhere else on the site. */
-        .fleet-grid { display: flex; gap: 1.25rem; overflow-x: auto; scroll-snap-type: x mandatory; padding: 0.25rem 0.25rem 0.75rem; margin: -0.25rem -0.25rem 0; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; scrollbar-width: auto; scrollbar-color: #1A1A1A #E5E3DC; }
-        /* Real native scrollbar styling for browsers that actually support it (desktop, Android
-           Chrome) — iOS Safari ignores this entirely and always uses its own auto-hiding overlay
-           regardless, which is what the separate always-visible #fleet-scroll-thumb bar is for. */
-        .fleet-grid::-webkit-scrollbar { height: 8px; }
-        .fleet-grid::-webkit-scrollbar-track { background: #E5E3DC; border-radius: 999px; }
-        .fleet-grid::-webkit-scrollbar-thumb { background: #1A1A1A; border-radius: 999px; }
+        .fleet-grid { display: flex; gap: 1.25rem; overflow-x: auto; scroll-snap-type: x mandatory; padding: 0.25rem 0.25rem 0.75rem; margin: -0.25rem -0.25rem 0; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; scrollbar-width: none; }
+        /* Native scrollbar hidden everywhere (not just iOS Safari, which never allows styling it
+           anyway) — the always-visible #fleet-scroll-thumb bar below the row is the one and only scroll
+           indicator now, instead of sitting duplicated right on top of a second, native one on browsers
+           that do support styling it (desktop, Android Chrome). */
+        .fleet-grid::-webkit-scrollbar { display: none; }
         .fleet-card { flex: 0 0 auto; scroll-snap-align: start; width: min(80vw, 300px); }
         @media (min-width: 768px) {
             /* auto-fill (not auto-fit): keeps card width consistent even when a filter leaves only
@@ -317,8 +322,12 @@
            a dark pill with light text instead — so it stays legible against either background rather
            than only fixing one case at the other's expense. Toggled by scroll position in JS. */
         #navbar { transition: background-color 0.3s ease, box-shadow 0.3s ease; }
-        #navbar.on-dark { background-color: #1A1A1A; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35); }
-        #navbar.on-dark .nav-logo-text { color: #F9F9F8; }
+        #navbar.on-dark { background-color: rgba(26, 26, 26, 0.65); box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35); }
+        /* Two logo images (black wordmark / white wordmark), swapped instead of recolored — a
+           bitmap logo can't be repainted with a CSS color property the way the old text label was. */
+        .nav-logo-dark { display: none; }
+        #navbar.on-dark .nav-logo-light { display: none; }
+        #navbar.on-dark .nav-logo-dark { display: block; }
         #navbar.on-dark .nav-link { color: #A8A29E; }
         #navbar.on-dark .nav-link:hover { color: #F9F9F8; }
         #navbar.on-dark .nav-link.active { background-color: #F9F9F8; color: #1A1A1A; }
@@ -373,6 +382,13 @@
       "description": "Cars, tempo travellers and buses for city drives, outstation trips, corporate events and group travel, arranged since 2000.",
       "telephone": "+91-80902-02020",
       "email": "newabhaitravels@yahoo.co.in",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "111-A/5, Ashok Nagar, Hotel Bliss Building, G.T. Road",
+        "addressLocality": "Kanpur",
+        "addressRegion": "Uttar Pradesh",
+        "addressCountry": "IN"
+      },
       "foundingDate": "2000",
       "aggregateRating": {
         "@type": "AggregateRating",
@@ -384,7 +400,7 @@
 </head>
 <body class="font-body selection:bg-stone-900 selection:text-white">
 
-    <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:bg-stone-900 focus:text-stone-50 focus:px-4 focus:py-2 focus:rounded-full focus:text-sm focus:font-medium">Skip to content</a>
+    <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:bg-stone-900 focus:text-stone-50 focus:px-4 focus:py-2 focus:rounded-xl focus:text-sm focus:font-medium">Skip to content</a>
 
     <!-- Progressive blur behind the floating nav pill: content that scrolls past isn't fully hidden by
          it (it's a pill, not a full-width bar, so text/images are visible in the margins around and
@@ -394,12 +410,10 @@
          the pill's bottom edge; pointer-events-none so it never blocks taps on the nav or the page. -->
     <div class="fixed top-0 inset-x-0 w-full h-28 z-40 pointer-events-none nav-top-scrim" aria-hidden="true"></div>
 
-    <nav class="fixed top-4 md:top-6 inset-x-4 md:inset-x-8 z-50 mx-auto max-w-4xl bg-stone-100 rounded-full shadow-lg shadow-stone-900/10 flex items-center justify-between gap-3 pl-2 pr-2.5 py-2 md:pl-3 md:pr-3 md:py-2.5" id="navbar">
+    <nav class="fixed top-4 md:top-6 inset-x-4 md:inset-x-8 z-50 mx-auto max-w-4xl bg-stone-100/70 backdrop-blur-md backdrop-saturate-150 rounded-xl shadow-lg shadow-stone-900/10 flex items-center justify-between gap-3 pl-2 pr-2.5 py-2 md:pl-3 md:pr-3 md:py-2.5" id="navbar">
         <a href="#" class="flex items-center gap-2 shrink-0">
-            <span class="w-9 h-9 rounded-full bg-stone-900 text-stone-50 flex items-center justify-center text-base shrink-0">
-                <i class="ph-fill ph-car-profile"></i>
-            </span>
-            <span class="nav-logo-text font-display font-bold text-lg tracking-tight text-stone-900 whitespace-nowrap">New Abhai</span>
+            <img src="natlogo-trimmed.png" alt="New Abhai Travels" class="nav-logo-light h-8 w-auto shrink-0">
+            <img src="natlogo-trimmed-dark.png" alt="New Abhai Travels" class="nav-logo-dark h-8 w-auto shrink-0">
         </a>
 
         <div class="hidden md:flex items-center gap-1 text-sm font-medium text-stone-500 mx-auto">
@@ -413,7 +427,7 @@
             <a href="tel:+918090202020" aria-label="Call us" class="hidden sm:flex w-9 h-9 rounded-full bg-white items-center justify-center text-stone-900 hover:bg-stone-200 transition-colors shrink-0">
                 <i class="ph ph-phone"></i>
             </a>
-            <a href="#book" class="nav-book-btn hidden md:inline-flex items-center px-5 py-2.5 rounded-full bg-stone-900 text-stone-50 text-sm font-medium hover:opacity-85 transition-opacity whitespace-nowrap">Book Now</a>
+            <a href="#book" class="nav-book-btn hidden md:inline-flex items-center px-5 py-2.5 rounded-xl bg-stone-900 text-stone-50 text-sm font-medium hover:opacity-85 transition-opacity whitespace-nowrap">Book Now</a>
             <button class="md:hidden w-9 h-9 rounded-full bg-white flex items-center justify-center text-stone-900 shrink-0" onclick="toggleMobileMenu()" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
                 <i class="ph ph-list"></i>
             </button>
@@ -454,50 +468,56 @@
              view before anything has scrolled.
              100dvh (not 100vh) so mobile browsers size this to the actually-visible viewport — 100vh
              includes the area behind the collapsible address bar, which pushed the bottom-anchored
-             CTA down into the same screen position as the fixed WhatsApp button and scroll-car. -->
-        <section id="hero" class="h-screen relative flex flex-col justify-end" style="height: 100dvh;">
+             CTA down into the same screen position as the fixed WhatsApp button and scroll-car.
+             min-height, not a hard height: whenever the content fits (the normal case, at any
+             reasonable viewport), this behaves exactly like height:100dvh always did. It's a safety
+             net for the rare case the fluid heading/spacing above still doesn't leave quite enough
+             room — content grows the section a little taller and the page scrolls slightly further
+             to show the rest, rather than ever overlapping the fixed navbar. -->
+        <section id="hero" class="relative flex flex-col justify-end" style="min-height: 100dvh;">
             <div class="absolute inset-0 z-[-1] hero-gradient" style="background: linear-gradient(to bottom, transparent 30%, rgba(240, 239, 234, 0.85) 75%, rgba(240, 239, 234, 1) 100%);"></div>
 
-            <div id="hero-content" class="relative z-10 px-5 md:px-12 pb-32 md:pb-24 w-full text-center md:text-left">
+            <div id="hero-content" class="relative z-10 px-5 md:px-12 pb-20 md:pb-16 w-full text-center md:text-left">
                 <p class="hero-fade-up hero-fade-up-d1 font-display tracking-widest uppercase text-sm mb-6 md:mb-10 text-stone-500">Est. 2000</p>
                 <h1 class="hero-fade-up hero-fade-up-d2 font-body font-extrabold text-fluid-hero-wide text-stone-900 tracking-tighter">
                     <span class="block whitespace-nowrap">Cars On Rent.</span>
                     <span class="block">Anytime.</span>
                 </h1>
                 <div class="hero-fade-up hero-fade-up-d3 mt-8 md:mt-16 flex flex-col items-center md:flex-row md:items-end justify-center md:justify-between gap-8">
-                    <p class="font-normal text-lg md:text-xl max-w-md leading-relaxed text-stone-700">
-                        Cars, tempo travellers and buses, considered rentals for every journey, arranged since 2000.
-                    </p>
-                    <a href="#fleet" class="group inline-flex items-center gap-3 bg-stone-900 text-stone-50 text-sm font-semibold uppercase tracking-widest px-6 py-3.5 rounded-full hover:opacity-85 transition-opacity w-fit shrink-0">
+                    <!-- The subline and the trust stats sit side by side on one line on desktop (the
+                         stats used to be a separate strip below, with its own top border, feeling
+                         disconnected from the rest of the copy) — stats to the right of the subline
+                         text, not underneath it — with the Book Now button on the far side of the row.
+                         Still stacks on mobile, where there isn't width to spare for all three. -->
+                    <div class="flex flex-col md:flex-row items-center gap-6 md:gap-10">
+                        <p class="font-normal text-lg md:text-xl max-w-md leading-relaxed text-stone-700">
+                            Cars, tempo travellers and buses, considered rentals for every journey, arranged since 2000.
+                        </p>
+                        <div class="flex items-center justify-center md:justify-start gap-3 md:gap-6 max-w-[260px] md:max-w-none">
+                            <div>
+                                <p class="font-display text-2xl md:text-3xl font-bold text-stone-900 leading-none tabular-nums">25+</p>
+                                <p class="text-[9px] md:text-[10px] tracking-widest uppercase text-stone-500 mt-1">Years</p>
+                            </div>
+                            <div class="w-px h-8 bg-stone-900/15" aria-hidden="true"></div>
+                            <div>
+                                <p class="font-display text-2xl md:text-3xl font-bold text-stone-900 leading-none tabular-nums">4.9★</p>
+                                <p class="text-[9px] md:text-[10px] tracking-widest uppercase text-stone-500 mt-1">Rating</p>
+                            </div>
+                            <div class="w-px h-8 bg-stone-900/15" aria-hidden="true"></div>
+                            <div>
+                                <p class="font-display text-2xl md:text-3xl font-bold text-stone-900 leading-none tabular-nums">24/7</p>
+                                <p class="text-[9px] md:text-[10px] tracking-widest uppercase text-stone-500 mt-1">Support</p>
+                            </div>
+                            <div class="w-px h-8 bg-stone-900/15 hidden md:block" aria-hidden="true"></div>
+                            <div class="hidden md:block">
+                                <p class="font-display text-3xl font-bold text-stone-900 leading-none">AC</p>
+                                <p class="text-[10px] tracking-widest uppercase text-stone-500 mt-1">&amp; Non-AC</p>
+                            </div>
+                        </div>
+                    </div>
+                    <a href="#fleet" class="group inline-flex items-center gap-3 bg-stone-900 text-stone-50 text-sm font-semibold uppercase tracking-widest px-6 py-3.5 rounded-xl hover:opacity-85 transition-opacity w-fit shrink-0">
                         Book Now <i class="ph ph-arrow-down group-hover:translate-y-2 transition-transform duration-500"></i>
                     </a>
-                </div>
-
-                <!-- A compact trust strip so the hero doesn't feel empty below the CTA — three of the
-                     four Numbers-section stats, condensed. Centered and capped narrower on mobile (a
-                     fourth item ran the row too wide, into the fixed WhatsApp button's zone at the
-                     right edge); left-aligned with the rest of the hero text and given a fourth stat
-                     on desktop, where there's room and no FAB collision to worry about. -->
-                <div class="hero-fade-up hero-fade-up-d3 flex items-center justify-center md:justify-start gap-3 md:gap-6 mt-10 md:mt-12 pt-6 border-t border-stone-900/10 max-w-[260px] md:max-w-none mx-auto md:mx-0">
-                    <div>
-                        <p class="font-display text-2xl md:text-3xl font-bold text-stone-900 leading-none">25+</p>
-                        <p class="text-[9px] md:text-[10px] tracking-widest uppercase text-stone-500 mt-1">Years</p>
-                    </div>
-                    <div class="w-px h-8 bg-stone-900/15" aria-hidden="true"></div>
-                    <div>
-                        <p class="font-display text-2xl md:text-3xl font-bold text-stone-900 leading-none">4.9★</p>
-                        <p class="text-[9px] md:text-[10px] tracking-widest uppercase text-stone-500 mt-1">Rating</p>
-                    </div>
-                    <div class="w-px h-8 bg-stone-900/15" aria-hidden="true"></div>
-                    <div>
-                        <p class="font-display text-2xl md:text-3xl font-bold text-stone-900 leading-none">24/7</p>
-                        <p class="text-[9px] md:text-[10px] tracking-widest uppercase text-stone-500 mt-1">Support</p>
-                    </div>
-                    <div class="w-px h-8 bg-stone-900/15 hidden md:block" aria-hidden="true"></div>
-                    <div class="hidden md:block">
-                        <p class="font-display text-3xl font-bold text-stone-900 leading-none">AC</p>
-                        <p class="text-[10px] tracking-widest uppercase text-stone-500 mt-1">&amp; Non-AC</p>
-                    </div>
                 </div>
             </div>
         </section>
@@ -522,7 +542,7 @@
                      height — stretch makes both buttons fill that full height so neither leaves a gap
                      above/below, instead of the taller one setting the row height and the shorter one
                      just floating centered inside it. -->
-                <div class="flex gap-1 border border-stone-300 w-fit mb-10 reveal rounded-full overflow-hidden bg-white" role="tablist" aria-label="Vehicle category">
+                <div class="flex gap-1 border border-stone-300 w-fit mb-10 reveal rounded-xl overflow-hidden bg-white" role="tablist" aria-label="Vehicle category">
                     <button id="tab-car" role="tab" aria-selected="true" onclick="setCategory('car')" class="flex items-center gap-2 min-h-[44px] px-6 py-3 text-sm font-semibold tracking-wide uppercase bg-stone-900 text-stone-50 hover:text-stone-900 transition-colors"><i class="ph-fill ph-car"></i> Automobiles</button>
                     <button id="tab-bus" role="tab" aria-selected="false" onclick="setCategory('bus')" class="flex items-center gap-2 min-h-[44px] px-6 py-3 text-sm font-semibold tracking-wide uppercase text-stone-500 hover:text-stone-900 transition-colors"><i class="ph-fill ph-bus"></i> Tempo &amp; Coaches</button>
                 </div>
@@ -535,12 +555,12 @@
 
                     <div class="hidden md:flex items-center gap-3 shrink-0">
                         <label for="capacity-select" class="sr-only">Seating capacity</label>
-                        <select id="capacity-select" onchange="setCapacity(this.value)" class="rounded-full border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 cursor-pointer hover:border-stone-900 transition-colors">
+                        <select id="capacity-select" onchange="setCapacity(this.value)" class="rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 cursor-pointer hover:border-stone-900 transition-colors">
                             <option value="all">Any Capacity</option>
                         </select>
 
                         <label for="ac-select" class="sr-only">AC / Non-AC</label>
-                        <select id="ac-select" onchange="setAc(this.value)" class="rounded-full border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 cursor-pointer hover:border-stone-900 transition-colors">
+                        <select id="ac-select" onchange="setAc(this.value)" class="rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 cursor-pointer hover:border-stone-900 transition-colors">
                             <option value="all">AC / Non-AC</option>
                             <option value="ac">AC</option>
                             <option value="nonac">Non-AC</option>
@@ -550,7 +570,7 @@
 
                 <!-- Mobile filter trigger -->
                 <div class="md:hidden mb-8 reveal reveal-delay-1">
-                    <button onclick="openFilterSheet()" class="w-full flex items-center justify-center gap-3 py-4 border border-stone-300 bg-white rounded-full text-sm font-semibold tracking-wide uppercase text-stone-900 shadow-sm">
+                    <button onclick="openFilterSheet()" class="w-full flex items-center justify-center gap-3 py-4 border border-stone-300 bg-white rounded-xl text-sm font-semibold tracking-wide uppercase text-stone-900 shadow-sm">
                         <i class="ph ph-sliders-horizontal"></i> Filters <span id="filter-count-badge" class="hidden w-5 h-5 rounded-full bg-stone-900 text-stone-50 text-[10px] items-center justify-center"></span>
                     </button>
                 </div>
@@ -561,11 +581,12 @@
                          it in text — dismissed the first time someone actually scrolls or touches the row. -->
                     <div id="swipe-hint-hand" class="md:hidden absolute top-16 left-1/2 -translate-x-1/2 swipe-hand-anim pointer-events-none text-3xl" aria-hidden="true">👆</div>
                 </div>
-                <!-- Mobile only: a custom, always-visible scroll indicator for the card row above — not
-                     the browser's native scrollbar, which iOS Safari doesn't allow styling (it only ever
-                     shows its own thin, auto-hiding overlay, no matter what CSS is applied to it). This
-                     stays visible permanently, unlike the one-time swipe hint below, whose thumb width
-                     reflects how much of the row is visible and slides to track real scroll position. -->
+                <!-- Mobile only: a custom, always-visible scroll indicator for the card row above — the
+                     row's own native scrollbar is hidden (see .fleet-grid) so this is the only one shown,
+                     rather than sitting duplicated on top of it on browsers that do render a native one.
+                     This stays visible permanently, unlike the one-time swipe hint below, whose thumb
+                     width reflects how much of the row is visible and slides to track real scroll
+                     position. -->
                 <div class="md:hidden relative h-2 bg-stone-200 rounded-full overflow-hidden mt-4" aria-hidden="true">
                     <div id="fleet-scroll-thumb" class="absolute inset-y-0 left-0 h-full bg-stone-900 rounded-full" style="width: 100%;"></div>
                 </div>
@@ -580,8 +601,8 @@
 
         <!-- Mobile Filter Bottom Sheet -->
         <div id="filter-sheet" class="fixed inset-0 z-[70] hidden">
-            <div class="absolute inset-0 bg-stone-900/50" onclick="closeFilterSheet()"></div>
-            <div id="filter-sheet-panel" class="absolute bottom-0 left-0 right-0 bg-stone-50 p-6 pb-8 max-h-[85vh] overflow-y-auto transform translate-y-full transition-transform duration-300 border-t border-stone-300 rounded-t-3xl">
+            <div class="absolute inset-0 bg-stone-900/40 backdrop-blur-sm" onclick="closeFilterSheet()"></div>
+            <div id="filter-sheet-panel" class="absolute bottom-0 left-0 right-0 bg-stone-50 p-6 pb-8 max-h-[85vh] overflow-y-auto transform translate-y-full transition-transform duration-300 border-t border-stone-300 rounded-t-xl">
                 <div class="flex items-center justify-between mb-8">
                     <h3 class="font-display text-xl">Filters</h3>
                     <button onclick="closeFilterSheet()" aria-label="Close filters" class="min-h-[44px] px-2 -mx-2 text-sm tracking-widest uppercase">Close</button>
@@ -595,12 +616,12 @@
 
                 <p class="text-xs tracking-widest uppercase text-stone-500 mb-3">AC / Non-AC</p>
                 <div class="flex gap-3 mb-10">
-                    <button onclick="setAc('all')" data-ac-btn-m="all" class="ac-btn-m flex-1 py-3 rounded-full text-sm tracking-widest uppercase border border-stone-300">All</button>
-                    <button onclick="setAc('ac')" data-ac-btn-m="ac" class="ac-btn-m flex-1 py-3 rounded-full text-sm tracking-widest uppercase border border-stone-300">AC</button>
-                    <button onclick="setAc('nonac')" data-ac-btn-m="nonac" class="ac-btn-m flex-1 py-3 rounded-full text-sm tracking-widest uppercase border border-stone-300">Non-AC</button>
+                    <button onclick="setAc('all')" data-ac-btn-m="all" class="ac-btn-m flex-1 py-3 rounded-xl text-sm tracking-widest uppercase border border-stone-300">All</button>
+                    <button onclick="setAc('ac')" data-ac-btn-m="ac" class="ac-btn-m flex-1 py-3 rounded-xl text-sm tracking-widest uppercase border border-stone-300">AC</button>
+                    <button onclick="setAc('nonac')" data-ac-btn-m="nonac" class="ac-btn-m flex-1 py-3 rounded-xl text-sm tracking-widest uppercase border border-stone-300">Non-AC</button>
                 </div>
 
-                <button onclick="closeFilterSheet()" class="w-full py-4 bg-stone-900 text-stone-50 rounded-full text-sm tracking-widest uppercase">Show Results</button>
+                <button onclick="closeFilterSheet()" class="w-full py-4 bg-stone-900 text-stone-50 rounded-xl text-sm tracking-widest uppercase">Show Results</button>
             </div>
         </div>
 
@@ -609,18 +630,21 @@
             <div class="max-w-7xl mx-auto">
             <div class="reveal mb-16">
                 <h2 class="font-display text-xs tracking-widest uppercase text-stone-500 mb-8">( 02. Steps to Book )</h2>
-                <h3 class="font-display text-3xl text-stone-900 leading-tight">Three steps, no online payment.</h3>
+                <h3 class="font-display font-bold text-3xl md:text-4xl text-stone-900 leading-tight tracking-tight">Three steps, no online payment.</h3>
             </div>
 
             <!-- Numbered circles use font-body (Inter), not font-display (Syne) — Syne's stylised zero
                  reads too much like the letter O to work as a plain step number. Cards genuinely stack
-                 on scroll via position:sticky, all pinned to the same offset — each new card scrolls up
-                 from below and settles over the last one, which stays put underneath (a pure-CSS effect,
-                 no fixed-position/JS trickery needed). A small animated cursor "clicks" the relevant spot
-                 in each mockup so it reads as something happening, not just a static screenshot. -->
+                 on scroll via position:sticky — each new card scrolls up from below and settles over the
+                 last one, which stays put underneath (a pure-CSS effect, no fixed-position/JS trickery
+                 needed). Each card pins a bit lower than the one before it (top-[14vh]/19vh/24vh) so a
+                 sliver of every earlier card stays visible above the one on top, reading as an actual
+                 stacked deck rather than the new card just erasing the last. A small animated cursor
+                 "clicks" the relevant spot in each mockup so it reads as something happening, not just a
+                 static screenshot. -->
             <div class="max-w-4xl mx-auto">
                 <!-- Step 1: paired with a mini fleet card, since that's literally what "choosing" looks like. -->
-                <div class="sticky top-[20vh] z-10 mb-24 md:mb-32 min-h-[540px] flex items-center md:min-h-[340px] reveal reveal-delay-1 bg-stone-100 border-4 border-stone-50 rounded-3xl p-6 md:p-8 shadow-lg">
+                <div class="sticky top-[14vh] z-10 mb-24 md:mb-32 min-h-[540px] flex items-center md:min-h-[340px] reveal reveal-delay-1 bg-stone-100 border-4 border-stone-50 rounded-xl p-6 md:p-8 shadow-lg">
                     <div class="grid grid-cols-1 sm:grid-cols-[auto_1fr_auto] gap-6 sm:gap-8 items-center w-full">
                         <span class="w-12 h-12 sm:w-14 sm:h-14 mx-auto sm:mx-0 shrink-0 rounded-full bg-stone-900 text-stone-50 flex items-center justify-center font-body font-bold text-xl">1</span>
                         <div class="text-center sm:text-left">
@@ -628,18 +652,18 @@
                             <p class="text-stone-600 font-light leading-relaxed">Browse the fleet, pick what fits.</p>
                         </div>
                         <div class="relative w-full sm:w-[190px] mx-auto sm:mx-0 shrink-0">
-                            <div class="bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-lg">
+                            <div class="bg-white border border-stone-200 rounded-lg overflow-hidden shadow-lg">
                                 <div class="relative aspect-[4/3] bg-stone-200 overflow-hidden">
-                                    <img src="https://placehold.co/480x360/F0EFEA/1A1A1A?text=Innova+Crysta" alt="Sample fleet card for the Toyota Innova Crysta" loading="lazy" decoding="async" width="480" height="360" class="w-full h-full object-cover editorial-img">
-                                    <span class="absolute top-2 left-2 bg-amber-400 text-stone-900 text-[9px] font-bold tracking-wide uppercase px-2 py-0.5 rounded-full">★ Popular</span>
+                                    <img src="Crysta/1.jpg" alt="Sample fleet card for the Toyota Innova Crysta" loading="lazy" decoding="async" width="480" height="360" class="w-full h-full object-cover editorial-img">
+                                    <span class="absolute top-2 left-2 bg-amber-400 text-stone-900 text-[9px] font-bold tracking-wide uppercase px-2 py-0.5 rounded-md">★ Popular</span>
                                 </div>
                                 <div class="p-3">
                                     <p class="font-display text-xs font-semibold text-stone-900 mb-2 leading-tight">Innova Crysta</p>
                                     <div class="flex items-center gap-1 flex-wrap mb-2.5">
-                                        <span class="bg-stone-100 text-stone-700 text-[8px] font-medium px-1.5 py-0.5 rounded-full">MPV</span>
-                                        <span class="bg-stone-100 text-stone-700 text-[8px] font-medium px-1.5 py-0.5 rounded-full">7 Seats</span>
+                                        <span class="bg-stone-100 text-stone-700 text-[8px] font-medium px-1.5 py-0.5 rounded-md">MPV</span>
+                                        <span class="bg-stone-100 text-stone-700 text-[8px] font-medium px-1.5 py-0.5 rounded-md">7 Seats</span>
                                     </div>
-                                    <span class="inline-flex items-center gap-1 bg-stone-900 text-white text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-full">View Details</span>
+                                    <span class="inline-flex items-center gap-1 bg-stone-900 text-white text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md">View Details</span>
                                 </div>
                             </div>
                             <div class="mock-cursor" style="top: 87%; left: 78%;" aria-hidden="true">
@@ -651,7 +675,7 @@
                 </div>
 
                 <!-- Step 2: paired with a mini WhatsApp-style bubble, since that's how most enquiries arrive. -->
-                <div class="sticky top-[20vh] z-20 mb-24 md:mb-32 min-h-[540px] flex items-center md:min-h-[340px] reveal reveal-delay-2 bg-stone-100 border-4 border-stone-50 rounded-3xl p-6 md:p-8 shadow-xl">
+                <div class="sticky top-[19vh] z-20 mb-24 md:mb-32 min-h-[540px] flex items-center md:min-h-[340px] reveal reveal-delay-2 bg-stone-100 border-4 border-stone-50 rounded-xl p-6 md:p-8 shadow-xl">
                     <div class="grid grid-cols-1 sm:grid-cols-[auto_1fr_auto] gap-6 sm:gap-8 items-center w-full">
                         <span class="w-12 h-12 sm:w-14 sm:h-14 mx-auto sm:mx-0 shrink-0 rounded-full bg-stone-900 text-stone-50 flex items-center justify-center font-body font-bold text-xl">2</span>
                         <div class="text-center sm:text-left">
@@ -659,8 +683,8 @@
                             <p class="text-stone-600 font-light leading-relaxed">We confirm your rate on WhatsApp.</p>
                         </div>
                         <div class="relative w-full sm:w-[190px] mx-auto sm:mx-0 shrink-0">
-                            <div class="bg-[#e5ded4] rounded-2xl p-3 shadow-lg">
-                                <div class="bg-[#dcf8c6] rounded-xl rounded-tr-sm px-2.5 py-2 shadow-sm">
+                            <div class="bg-[#e5ded4] rounded-lg p-3 shadow-lg">
+                                <div class="bg-[#dcf8c6] rounded-md rounded-tr-sm px-2.5 py-2 shadow-sm">
                                     <p class="text-[9px] text-stone-800 leading-snug">Hi! Interested in the Innova Crysta this weekend. Is it available?</p>
                                     <p class="text-[8px] text-stone-500 text-right mt-1 flex items-center justify-end gap-1">10:42 AM <i class="ph-fill ph-checks text-[10px] text-sky-500"></i></p>
                                 </div>
@@ -674,7 +698,7 @@
                 </div>
 
                 <!-- Step 3: paired with a mini confirmation card, so the payoff is visible too. -->
-                <div class="sticky top-[20vh] z-30 min-h-[540px] flex items-center md:min-h-[340px] reveal reveal-delay-3 bg-stone-100 border-4 border-stone-50 rounded-3xl p-6 md:p-8 shadow-2xl">
+                <div class="sticky top-[24vh] z-30 min-h-[540px] flex items-center md:min-h-[340px] reveal reveal-delay-3 bg-stone-100 border-4 border-stone-50 rounded-xl p-6 md:p-8 shadow-2xl">
                     <div class="grid grid-cols-1 sm:grid-cols-[auto_1fr_auto] gap-6 sm:gap-8 items-center w-full">
                         <span class="w-12 h-12 sm:w-14 sm:h-14 mx-auto sm:mx-0 shrink-0 rounded-full bg-stone-900 text-stone-50 flex items-center justify-center font-body font-bold text-xl">3</span>
                         <div class="text-center sm:text-left">
@@ -682,7 +706,7 @@
                             <p class="text-stone-600 font-light leading-relaxed">Your ride arrives, right on time.</p>
                         </div>
                         <div class="relative w-full sm:w-[190px] mx-auto sm:mx-0 shrink-0">
-                            <div class="bg-white border border-stone-200 rounded-2xl p-4 shadow-lg text-center">
+                            <div class="bg-white border border-stone-200 rounded-lg p-4 shadow-lg text-center">
                                 <span class="w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto mb-2"><i class="ph-fill ph-check-bold"></i></span>
                                 <p class="text-xs font-semibold text-stone-900 mb-1">Booking Confirmed</p>
                                 <p class="text-[9px] text-stone-500">Driver arriving 9:00 AM</p>
@@ -730,7 +754,7 @@
                     <div class="story-block">
                         <div class="text-3xl md:text-5xl font-black text-stone-300 mb-4 tracking-tighter">01</div>
                         <h3 class="text-xl md:text-2xl font-bold tracking-tight text-stone-900 mb-4">The Foundation</h3>
-                        <p class="text-stone-600 font-light text-base md:text-lg leading-relaxed">
+                        <p class="text-stone-600 font-light text-base md:text-lg leading-relaxed max-w-[62ch]">
                             It began at the turn of the millennium with a single premise: road travel shouldn't just be about getting from point A to B. It should be reliable, seamless, and deeply considered. We set out to redefine the standard of vehicle rentals, treating every trip with the gravity it deserves.
                         </p>
                     </div>
@@ -739,7 +763,7 @@
                     <div class="story-block">
                         <div class="text-3xl md:text-5xl font-black text-stone-300 mb-4 tracking-tighter">02</div>
                         <h3 class="text-xl md:text-2xl font-bold tracking-tight text-stone-900 mb-4">Scaling the Fleet</h3>
-                        <p class="text-stone-600 font-light text-base md:text-lg leading-relaxed">
+                        <p class="text-stone-600 font-light text-base md:text-lg leading-relaxed max-w-[62ch]">
                             As demands grew, so did our ambitions. We expanded far beyond standard cars, meticulously curating a diverse fleet of tempo travellers and luxury buses. Whether coordinating a corporate retreat or arranging a family pilgrimage, we ensured the exact right vehicle was always ready.
                         </p>
                     </div>
@@ -748,24 +772,30 @@
                     <div class="story-block">
                         <div class="text-3xl md:text-5xl font-black text-stone-300 mb-4 tracking-tighter">03</div>
                         <h3 class="text-xl md:text-2xl font-bold tracking-tight text-stone-900 mb-4">The Standard Today</h3>
-                        <p class="text-stone-600 font-light text-base md:text-lg leading-relaxed">
+                        <p class="text-stone-600 font-light text-base md:text-lg leading-relaxed max-w-[62ch]">
                             Over two decades later, the name New Abhai stands as a benchmark for trust. With 24/7 dedicated support, rigorous maintenance protocols, and chauffeurs who master the roads, we don't just rent vehicles: we guarantee absolute peace of mind on every journey.
                         </p>
                     </div>
 
-                    <!-- Chapter 4: Office photos, from Office-photos/. Each is a different native
+                    <!-- Chapter 4: Office photos, from office/ (4 photos). Each is a different native
                          aspect ratio, but the shared aspect-[4/5] + object-cover keeps the grid
-                         locked to one uniform shape regardless of source dimensions. -->
+                         locked to one uniform shape regardless of source dimensions. 2 columns on
+                         mobile (a clean 2x2) widening to a single row of 4 from md up. -->
                     <div class="story-block">
                         <div class="text-3xl md:text-5xl font-black text-stone-300 mb-4 tracking-tighter">04</div>
                         <h3 class="text-xl md:text-2xl font-bold tracking-tight text-stone-900 mb-4">Where We Operate From</h3>
-                        <p class="text-stone-600 font-light text-base md:text-lg leading-relaxed mb-6">
+                        <p class="text-stone-600 font-light text-base md:text-lg leading-relaxed max-w-[62ch] mb-2">
                             Every booking is coordinated from our own office, not a call centre script. Drop by, or just picture the team behind the phone.
                         </p>
-                        <div class="grid grid-cols-3 gap-3">
-                            <img src="Office-photos/1.jpg" alt="New Abhai Travels office, view 1" loading="lazy" decoding="async" width="400" height="500" class="w-full aspect-[4/5] object-cover rounded-xl editorial-img">
-                            <img src="Office-photos/2.jpg" alt="New Abhai Travels office, view 2" loading="lazy" decoding="async" width="400" height="500" class="w-full aspect-[4/5] object-cover rounded-xl editorial-img">
-                            <img src="Office-photos/3.jpg" alt="New Abhai Travels office, view 3" loading="lazy" decoding="async" width="400" height="500" class="w-full aspect-[4/5] object-cover rounded-xl editorial-img">
+                        <a href="https://www.google.com/maps/search/?api=1&query=111-A%2F5+Ashok+Nagar+Hotel+Bliss+Building+G.T+Road+Kanpur" target="_blank" rel="noopener" class="inline-flex items-start gap-2 mb-6 text-sm text-stone-500 hover:text-stone-900 transition-colors">
+                            <i class="ph ph-map-pin text-base mt-0.5"></i>
+                            <span>111-A/5, Ashok Nagar, Hotel Bliss Building, G.T. Road, Kanpur</span>
+                        </a>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <img src="office/1.jpg" alt="New Abhai Travels office, view 1" loading="lazy" decoding="async" width="400" height="500" class="w-full aspect-[4/5] object-cover rounded-md editorial-img">
+                            <img src="office/2.jpg" alt="New Abhai Travels office, view 2" loading="lazy" decoding="async" width="400" height="500" class="w-full aspect-[4/5] object-cover rounded-md editorial-img">
+                            <img src="office/3.jpg" alt="New Abhai Travels office, view 3" loading="lazy" decoding="async" width="400" height="500" class="w-full aspect-[4/5] object-cover rounded-md editorial-img">
+                            <img src="office/4.jpg" alt="New Abhai Travels office, view 4" loading="lazy" decoding="async" width="400" height="500" class="w-full aspect-[4/5] object-cover rounded-md editorial-img">
                         </div>
                     </div>
 
@@ -776,8 +806,7 @@
         <!-- 04. Testimonials & FAQ -->
         <section id="testimonials" class="dark-section py-32 px-6 md:px-12 bg-stone-900 text-stone-50">
             <div class="max-w-5xl mx-auto text-center">
-                <h2 class="font-display text-xs tracking-widest uppercase text-stone-400 mb-4 reveal">( 04. Testimonials &amp; FAQ )</h2>
-                <p class="text-sm tracking-widest uppercase text-stone-400 mb-16 reveal">4.9 · 240 Reviews</p>
+                <h2 class="font-display text-xs tracking-widest uppercase text-stone-400 mb-16 reveal">( 04. Testimonials &amp; FAQ )</h2>
 
                 <!-- Video testimonials: tap a thumbnail to play the customer's own clip in the modal below.
                      Two real reviews are available so far (Review-VDO/1.mov, 2.mov) — add a third
@@ -785,7 +814,7 @@
                      fabricated customer names are attached to real footage; swap in real names/vehicle
                      labels once known. -->
                 <div class="grid grid-cols-2 gap-3 md:gap-6 max-w-md mx-auto">
-                    <button type="button" onclick="openTestimonialVideo('review1')" aria-label="Play customer video review 1" class="group relative aspect-[9/16] rounded-2xl overflow-hidden bg-stone-800 text-left reveal reveal-delay-1">
+                    <button type="button" onclick="openTestimonialVideo('review1')" aria-label="Play customer video review 1" class="group relative aspect-[9/16] rounded-lg overflow-hidden bg-stone-800 text-left reveal reveal-delay-1">
                         <img src="Review-VDO/1-poster.jpg" alt="" loading="lazy" decoding="async" width="478" height="850" class="w-full h-full object-cover editorial-img opacity-70 group-hover:opacity-90 group-hover:scale-105 transition-all duration-500">
                         <span class="absolute inset-0 flex items-center justify-center">
                             <span class="w-11 h-11 md:w-14 md:h-14 rounded-full bg-stone-50 text-stone-900 flex items-center justify-center text-lg md:text-2xl group-hover:scale-110 transition-transform"><i class="ph-fill ph-play"></i></span>
@@ -794,7 +823,7 @@
                             <span class="block text-xs md:text-sm font-medium text-stone-50">Customer Review</span>
                         </span>
                     </button>
-                    <button type="button" onclick="openTestimonialVideo('review2')" aria-label="Play customer video review 2" class="group relative aspect-[9/16] rounded-2xl overflow-hidden bg-stone-800 text-left reveal reveal-delay-2">
+                    <button type="button" onclick="openTestimonialVideo('review2')" aria-label="Play customer video review 2" class="group relative aspect-[9/16] rounded-lg overflow-hidden bg-stone-800 text-left reveal reveal-delay-2">
                         <img src="Review-VDO/2-poster.jpg" alt="" loading="lazy" decoding="async" width="464" height="832" class="w-full h-full object-cover editorial-img opacity-70 group-hover:opacity-90 group-hover:scale-105 transition-all duration-500">
                         <span class="absolute inset-0 flex items-center justify-center">
                             <span class="w-11 h-11 md:w-14 md:h-14 rounded-full bg-stone-50 text-stone-900 flex items-center justify-center text-lg md:text-2xl group-hover:scale-110 transition-transform"><i class="ph-fill ph-play"></i></span>
@@ -812,19 +841,27 @@
                 <div class="space-y-6">
                     <details class="group border-b border-stone-50/15 pb-6 reveal">
                         <summary class="font-display text-xl flex justify-between items-center gap-4 transition-colors hover:text-stone-300">
-                            What do I need to rent a vehicle?
+                            Why should you take a car or bus from New Abhai Travels?
                             <i class="ph ph-plus acc-plus text-stone-400 shrink-0"></i>
                             <i class="ph ph-minus acc-minus text-stone-400 shrink-0"></i>
                         </summary>
-                        <p class="mt-4 text-stone-400 font-light leading-relaxed pr-8">A valid driving licence, a government photo ID, and a refundable security deposit. For tempo travellers and buses, a driver is included as standard.</p>
+                        <p class="mt-4 text-stone-400 font-light leading-relaxed pr-8">Because we provide comfortable, clean, reliable vehicles with experienced drivers, making your local or outstation journey safe, convenient, and hassle-free.</p>
+                    </details>
+                    <details class="group border-b border-stone-50/15 pb-6 reveal">
+                        <summary class="font-display text-xl flex justify-between items-center gap-4 transition-colors hover:text-stone-300">
+                            What is required to rent a vehicle?
+                            <i class="ph ph-plus acc-plus text-stone-400 shrink-0"></i>
+                            <i class="ph ph-minus acc-minus text-stone-400 shrink-0"></i>
+                        </summary>
+                        <p class="mt-4 text-stone-400 font-light leading-relaxed pr-8">A valid ID proof, customer name and mobile number, advance payment as per the rental terms, and a signed rental agreement are required. No driving licence or security deposit is required.</p>
                     </details>
                     <details class="group border-b border-stone-50/15 pb-6 reveal reveal-delay-1">
                         <summary class="font-display text-xl flex justify-between items-center gap-4 transition-colors hover:text-stone-300">
-                            Do tempo travellers and buses come with a driver?
+                            Do vehicles come with a driver?
                             <i class="ph ph-plus acc-plus text-stone-400 shrink-0"></i>
                             <i class="ph ph-minus acc-minus text-stone-400 shrink-0"></i>
                         </summary>
-                        <p class="mt-4 text-stone-400 font-light leading-relaxed pr-8">Yes, every tempo traveller and bus is rented with a driver included as standard.</p>
+                        <p class="mt-4 text-stone-400 font-light leading-relaxed pr-8">Yes — self-drive isn't available. Every vehicle, from cars to buses, comes with a professional driver as part of the service.</p>
                     </details>
                     <details class="group border-b border-stone-50/15 pb-6 reveal reveal-delay-2">
                         <summary class="font-display text-xl flex justify-between items-center gap-4 transition-colors hover:text-stone-300">
@@ -832,7 +869,7 @@
                             <i class="ph ph-plus acc-plus text-stone-400 shrink-0"></i>
                             <i class="ph ph-minus acc-minus text-stone-400 shrink-0"></i>
                         </summary>
-                        <p class="mt-4 text-stone-400 font-light leading-relaxed pr-8">Vehicles are handed over with a full tank and should be returned full. If not, refuelling is charged at the local pump rate plus a small service fee.</p>
+                        <p class="mt-4 text-stone-400 font-light leading-relaxed pr-8">Fuel is included in the agreed rental fare, and the vehicle is handed over with a reasonable fuel level for the booked trip — nothing to arrange yourself. Extra kilometres, detours, or trips beyond the agreed package, along with tolls, parking, and other statutory charges, are billed separately as per the confirmed terms.</p>
                     </details>
                     <details class="group border-b border-stone-50/15 pb-6 reveal reveal-delay-3">
                         <summary class="font-display text-xl flex justify-between items-center gap-4 transition-colors hover:text-stone-300">
@@ -861,9 +898,9 @@
                 <h3 class="font-display text-fluid-h2 text-stone-900 leading-tight mb-6 reveal">Already rented with us?</h3>
                 <p class="text-stone-500 font-light leading-relaxed max-w-lg mx-auto mb-10 reveal reveal-delay-1">Your experience helps other travellers decide, and helps us do better. Scan from another device, or tap to open the form on this one.</p>
 
-                <div class="inline-flex flex-col sm:flex-row items-center gap-6 sm:gap-8 bg-white border border-stone-200 rounded-3xl px-8 md:px-12 py-10 reveal reveal-delay-2">
+                <div class="inline-flex flex-col sm:flex-row items-center gap-6 sm:gap-8 bg-white border border-stone-200 rounded-xl px-8 md:px-12 py-10 reveal reveal-delay-2">
                     <div class="flex flex-col items-center gap-3">
-                        <img src="qr-code.png" width="160" height="160" loading="lazy" decoding="async" alt="QR code linking to the review form" class="editorial-img rounded-2xl">
+                        <img src="qr-code.png" width="160" height="160" loading="lazy" decoding="async" alt="QR code linking to the review form" class="editorial-img rounded-lg">
                         <p class="text-[10px] tracking-widest uppercase text-stone-400">Scan to Review</p>
                     </div>
 
@@ -874,13 +911,12 @@
                     </div>
 
                     <div class="flex flex-col items-center gap-3">
-                        <a href="https://forms.gle/GvnwYND12L4boZph7" target="_blank" rel="noopener" class="inline-flex items-center gap-3 bg-stone-900 text-stone-50 text-sm font-semibold uppercase tracking-widest px-6 py-3 rounded-full hover:opacity-85 transition-opacity whitespace-nowrap">
+                        <a href="https://forms.gle/GvnwYND12L4boZph7" target="_blank" rel="noopener" class="inline-flex items-center gap-3 bg-stone-900 text-stone-50 text-sm font-semibold uppercase tracking-widest px-6 py-3 rounded-xl hover:opacity-85 transition-opacity whitespace-nowrap">
                             Leave a Review <i class="ph ph-arrow-up-right"></i>
                         </a>
                         <p class="text-[10px] tracking-widest uppercase text-stone-400">Tap to Open Form</p>
                     </div>
                 </div>
-                <p class="text-xs tracking-widest uppercase text-stone-400 mt-8 reveal reveal-delay-3">4.9 · 240 Reviews so far</p>
             </div>
         </section>
 
@@ -892,22 +928,27 @@
                 <p class="text-stone-500 font-light max-w-lg mx-auto mb-12">Reach out directly to arrange your vehicle. We'll confirm the rate and details before anything is booked. No form to fill in, just pick a way to reach us.</p>
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <a href="tel:+918090202020" class="reveal reveal-delay-1 group flex flex-col items-center gap-3 bg-stone-900 text-stone-50 rounded-3xl py-10 px-4 hover:opacity-85 transition-opacity">
+                    <a href="tel:+918090202020" class="reveal reveal-delay-1 group flex flex-col items-center gap-3 bg-stone-900 text-stone-50 rounded-xl py-10 px-4 hover:opacity-85 transition-opacity">
                         <i class="ph ph-phone text-3xl"></i>
                         <span class="text-sm font-semibold uppercase tracking-widest">Call Now</span>
                         <span class="text-xs text-stone-400">+91 80902 02020</span>
                     </a>
-                    <a href="https://wa.me/918090202020" target="_blank" rel="noopener" class="reveal reveal-delay-2 group flex flex-col items-center gap-3 bg-[#25D366] text-white rounded-3xl py-10 px-4 hover:opacity-85 transition-opacity">
+                    <a href="https://wa.me/918090202020" target="_blank" rel="noopener" class="reveal reveal-delay-2 group flex flex-col items-center gap-3 bg-[#25D366] text-white rounded-xl py-10 px-4 hover:opacity-85 transition-opacity">
                         <i class="ph-fill ph-whatsapp-logo text-3xl"></i>
                         <span class="text-sm font-semibold uppercase tracking-widest">WhatsApp Us</span>
                         <span class="text-xs text-white/80">Fastest response</span>
                     </a>
-                    <a href="mailto:newabhaitravels@yahoo.co.in" class="reveal reveal-delay-3 group flex flex-col items-center gap-3 bg-white border border-stone-300 text-stone-900 rounded-3xl py-10 px-4 hover:border-stone-900 transition-colors">
+                    <a href="mailto:newabhaitravels@yahoo.co.in" class="reveal reveal-delay-3 group flex flex-col items-center gap-3 bg-white border border-stone-300 text-stone-900 rounded-xl py-10 px-4 hover:border-stone-900 transition-colors">
                         <i class="ph ph-envelope-simple text-3xl"></i>
                         <span class="text-sm font-semibold uppercase tracking-widest">Email Us</span>
                         <span class="text-xs text-stone-500 break-all">newabhaitravels@yahoo.co.in</span>
                     </a>
                 </div>
+
+                <a href="https://www.google.com/maps/search/?api=1&query=111-A%2F5+Ashok+Nagar+Hotel+Bliss+Building+G.T+Road+Kanpur" target="_blank" rel="noopener" class="reveal reveal-delay-3 inline-flex items-start gap-2 mt-8 text-sm text-stone-500 hover:text-stone-900 transition-colors">
+                    <i class="ph ph-map-pin text-base mt-0.5"></i>
+                    <span>111-A/5, Ashok Nagar, Hotel Bliss Building, G.T. Road, Kanpur</span>
+                </a>
             </div>
         </section>
 
@@ -996,77 +1037,108 @@
     </div>
 
     <!-- Testimonial Video Modal: plays the tapped customer clip full-screen-ish, paused and unloaded on close. -->
-    <div id="testimonial-video-modal" class="fixed inset-0 z-[85] bg-stone-900/85 hidden items-center justify-center p-4 md:p-6" role="dialog" aria-modal="true" aria-label="Customer video testimonial" onclick="if (event.target === this) closeTestimonialVideo();">
+    <div id="testimonial-video-modal" class="fixed inset-0 z-[85] bg-stone-900/70 backdrop-blur-md hidden items-center justify-center p-4 md:p-6" role="dialog" aria-modal="true" aria-label="Customer video testimonial" onclick="if (event.target === this) closeTestimonialVideo();">
         <div class="w-full max-w-sm relative">
-            <button onclick="closeTestimonialVideo()" aria-label="Close video" class="absolute -top-12 right-0 md:top-4 md:right-4 z-20 w-10 h-10 rounded-full bg-stone-50 border border-stone-300 flex items-center justify-center hover:bg-stone-900 hover:text-stone-50 transition-colors">
+            <button onclick="closeTestimonialVideo()" aria-label="Close video" class="absolute -top-12 right-0 md:top-4 md:right-4 z-20 w-10 h-10 rounded-full bg-stone-50/80 backdrop-blur-sm border border-stone-300 flex items-center justify-center hover:bg-stone-900 hover:text-stone-50 transition-colors">
                 <i class="ph ph-x text-lg"></i>
             </button>
-            <video id="testimonial-video-player" class="w-full aspect-[9/16] bg-black rounded-2xl" controls playsinline></video>
+            <video id="testimonial-video-player" class="w-full aspect-[9/16] bg-black rounded-lg" controls playsinline></video>
         </div>
+    </div>
+
+    <!-- Fullscreen Image Lightbox: full-size view of whichever vehicle photo is open in the detail
+         modal, with arrow navigation through that vehicle's whole photo set. Stays in sync with the
+         modal's own main image/thumbnails via showModalPhoto(). -->
+    <div id="image-lightbox" class="fixed inset-0 z-[90] bg-stone-900/80 backdrop-blur-lg hidden items-center justify-center p-4 md:p-8" role="dialog" aria-modal="true" aria-label="Full screen photo view" onclick="if (event.target === this) closeLightbox();">
+        <button onclick="closeLightbox()" aria-label="Close full screen view" class="absolute top-4 right-4 md:top-6 md:right-6 z-20 w-11 h-11 rounded-full bg-stone-50/80 backdrop-blur-sm border border-stone-300 flex items-center justify-center text-stone-900 hover:bg-stone-900 hover:text-stone-50 transition-colors">
+            <i class="ph ph-x text-xl"></i>
+        </button>
+        <button id="lightbox-prev" onclick="stepLightbox(-1)" aria-label="Previous photo" class="hidden absolute left-2 md:left-6 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-stone-50/80 backdrop-blur-sm border border-stone-300 items-center justify-center text-stone-900 hover:bg-stone-900 hover:text-stone-50 transition-colors">
+            <i class="ph ph-caret-left text-xl"></i>
+        </button>
+        <img id="lightbox-img" src="" alt="" class="max-w-full max-h-full object-contain rounded">
+        <button id="lightbox-next" onclick="stepLightbox(1)" aria-label="Next photo" class="hidden absolute right-2 md:right-6 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-stone-50/80 backdrop-blur-sm border border-stone-300 items-center justify-center text-stone-900 hover:bg-stone-900 hover:text-stone-50 transition-colors">
+            <i class="ph ph-caret-right text-xl"></i>
+        </button>
+        <span id="lightbox-counter" class="hidden absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-20 px-3 py-1 rounded-md bg-stone-50/80 backdrop-blur-sm text-stone-900 text-xs font-medium tabular-nums"></span>
     </div>
 
     <!-- Vehicle Detail Modal: same journey as before — browse the grid, click a card, review details,
          then enquire from here rather than committing to anything sight-unseen. -->
-    <div id="vehicle-modal" class="fixed inset-0 z-[80] bg-stone-900/70 hidden items-center justify-center p-4 md:p-6" role="dialog" aria-modal="true" aria-labelledby="modal-title" onclick="if (event.target === this) closeModal();">
-        <div class="bg-stone-50 w-full max-w-4xl overflow-hidden relative flex flex-col max-h-[90dvh] rounded-3xl" id="modal-content">
+    <div id="vehicle-modal" class="fixed inset-0 z-[80] bg-stone-900/60 backdrop-blur-md hidden items-center justify-center p-4 md:p-6" role="dialog" aria-modal="true" aria-labelledby="modal-title" onclick="if (event.target === this) closeModal();">
+        <div class="bg-stone-50 w-full max-w-4xl md:max-w-5xl overflow-hidden relative flex flex-col md:flex-row max-h-[90dvh] rounded-xl" id="modal-content">
 
             <button onclick="closeModal()" aria-label="Close vehicle details" class="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-stone-50 border border-stone-300 flex items-center justify-center text-red-600 hover:bg-stone-900 hover:text-red-500 transition-colors">
                 <i class="ph ph-x text-lg"></i>
             </button>
 
-            <div class="overflow-y-auto flex flex-col">
-                <div class="w-full shrink-0 relative bg-stone-100 overflow-hidden aspect-[4/3]">
-                    <!-- Full modal width, not a half-width column: at exactly the source photos' own
-                         4:3 ratio, so object-cover never has to crop anything away — the whole photo
-                         shows edge-to-edge, and the details below simply continue underneath it. -->
-                    <img id="modal-img" src="" alt="" class="w-full h-full object-cover editorial-img transition-opacity duration-300">
-                    <!-- Shown whenever modal-img is mid-load (see setMainImage) — most of the time this
-                         never becomes visible at all, since the card-visibility prefetch below already
-                         has the photo cached by the time someone actually opens the modal. -->
-                    <div id="modal-img-loader" class="hidden absolute inset-0 z-[5] flex items-center justify-center bg-stone-100">
-                        <span class="w-8 h-8 rounded-full border-2 border-stone-300 border-t-stone-900 animate-spin"></span>
-                    </div>
-                    <span id="modal-tag" class="absolute top-6 left-6 z-10 px-3 py-1 rounded-full bg-stone-900 text-stone-50 text-[10px] tracking-widest uppercase"></span>
-                    <div id="modal-gallery" class="hidden absolute bottom-0 inset-x-0 z-10 flex gap-2 justify-start flex-wrap p-4 bg-gradient-to-t from-stone-900/70 to-transparent"></div>
+            <!-- Photo column: always kept at the source photos' own 4:3 ratio (never stretched, so
+                 nothing gets cropped or letterboxed — see syncModalPhotoHeight for how its size is
+                 chosen). Fixed-ratio on mobile; on md+ its height is set to match the details column's
+                 own natural height (capped so its derived width can't exceed md:max-w-[55%]), so the
+                 card is as compact as the details content allows without ever distorting the photo. -->
+            <div id="modal-photo-col" class="w-full md:w-auto md:max-w-[55%] shrink-0 md:self-start relative bg-stone-100 overflow-hidden aspect-[4/3]">
+                <img id="modal-img" src="" alt="" onclick="openLightbox()" class="w-full h-full object-contain editorial-img transition-opacity duration-300 cursor-zoom-in">
+                <!-- Shown whenever modal-img is mid-load (see setMainImage) — most of the time this
+                     never becomes visible at all, since the card-visibility prefetch below already
+                     has the photo cached by the time someone actually opens the modal. -->
+                <div id="modal-img-loader" class="hidden absolute inset-0 z-[5] flex items-center justify-center bg-stone-100">
+                    <span class="w-8 h-8 rounded-full border-2 border-stone-300 border-t-stone-900 animate-spin"></span>
                 </div>
+                <span id="modal-tag" class="absolute top-6 left-6 z-10 px-3 py-1 rounded-md bg-stone-900 text-stone-50 text-[10px] tracking-widest uppercase"></span>
+                <button type="button" onclick="openLightbox()" aria-label="View photo full screen" class="absolute top-4 right-16 z-10 w-10 h-10 rounded-full bg-stone-50/90 backdrop-blur-sm border border-stone-300 flex items-center justify-center text-stone-900 hover:bg-stone-900 hover:text-stone-50 transition-colors">
+                    <i class="ph ph-arrows-out text-lg"></i>
+                </button>
+                <div id="modal-gallery" class="hidden absolute bottom-0 inset-x-0 z-10 flex gap-2 justify-start flex-wrap p-4 bg-gradient-to-t from-stone-900/70 to-transparent"></div>
+            </div>
 
-                <div class="w-full p-8 md:p-10">
-                    <p id="modal-cat" class="font-display text-xs tracking-widest uppercase text-stone-500 mb-2">Category</p>
-                    <h3 id="modal-title" class="font-display text-2xl md:text-3xl mb-4">Vehicle Name</h3>
+            <!-- Details column: scrolls independently of the photo, which stays put beside it on md+
+                 (and stays pinned above it on mobile) rather than scrolling away with the rest. -->
+            <div id="modal-details-col" class="w-full md:flex-1 md:self-start min-h-0 md:max-h-[90dvh] overflow-y-auto">
+                <div class="p-8">
+                    <p id="modal-cat" class="font-display text-xs tracking-widest uppercase text-stone-500 mb-1">Category</p>
+                    <h3 id="modal-title" class="font-display text-2xl md:text-3xl mb-2">Vehicle Name</h3>
 
                     <!-- Seat-capacity variant switcher: only populated/shown for vehicles that come in
                          multiple seat configurations (currently the tempo travellers and buses). -->
                     <div id="modal-variants" class="hidden flex flex-wrap items-center gap-2 mb-6"></div>
 
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-4 mb-8 text-sm">
+                    <div class="grid grid-cols-2 gap-y-3 gap-x-4 mb-4 text-sm">
                         <div>
-                            <p class="text-[10px] tracking-widest uppercase text-stone-500 mb-1">Capacity</p>
+                            <p class="text-[10px] tracking-widest uppercase text-stone-500 mb-1 break-words">Capacity</p>
                             <p id="modal-seats" class="font-medium">5 Seats</p>
                         </div>
                         <div>
-                            <p id="modal-stat2-label" class="text-[10px] tracking-widest uppercase text-stone-500 mb-1">Transmission</p>
+                            <p id="modal-stat2-label" class="text-[10px] tracking-widest uppercase text-stone-500 mb-1 break-words">Transmission</p>
                             <p id="modal-stat2-value" class="font-medium">Manual</p>
                         </div>
                         <div>
-                            <p class="text-[10px] tracking-widest uppercase text-stone-500 mb-1">Climate</p>
+                            <p class="text-[10px] tracking-widest uppercase text-stone-500 mb-1 break-words">Climate</p>
                             <p id="modal-ac" class="font-medium">AC</p>
                         </div>
                         <div>
-                            <p id="modal-stat4-label" class="text-[10px] tracking-widest uppercase text-stone-500 mb-1">Fuel Type</p>
+                            <p id="modal-stat4-label" class="text-[10px] tracking-widest uppercase text-stone-500 mb-1 break-words">Fuel Type</p>
                             <p id="modal-stat4-value" class="font-medium">Diesel/Petrol</p>
                         </div>
                     </div>
 
-                    <div class="border-t border-b border-stone-200 py-6 mb-8">
+                    <!-- Amenities list — only populated/shown for vehicles that carry a `features`
+                         list (currently the tempo travellers). -->
+                    <div id="modal-features" class="hidden mb-8">
+                        <p class="text-[10px] tracking-widest uppercase text-stone-500 mb-3">Features</p>
+                        <div id="modal-features-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3"></div>
+                    </div>
+
+                    <div class="border-t border-b border-stone-200 py-4 mb-4">
                         <p class="text-xs tracking-widest uppercase text-stone-500 mb-1">Rental Rate</p>
-                        <p class="font-display text-xl mb-3">Confirmed on Enquiry</p>
-                        <p class="text-xs text-stone-500 font-light leading-relaxed">Refundable security deposit applies · Full-tank fuel policy · Exact rate shared over WhatsApp or a call</p>
+                        <p class="font-display text-xl mb-2">Confirmed on Enquiry</p>
+                        <p class="text-xs text-stone-500 font-light leading-snug">No security deposit · Driver &amp; fuel included · Exact rate shared over WhatsApp or a call</p>
                     </div>
 
                     <div class="grid grid-cols-3 gap-2 md:gap-3">
-                        <a id="modal-whatsapp" href="https://wa.me/918090202020" target="_blank" rel="noopener" class="px-1 py-3 md:py-4 rounded-xl bg-stone-900 text-stone-50 text-center text-[10px] md:text-sm tracking-tight md:tracking-widest uppercase hover:opacity-80 transition-opacity flex items-center justify-center">WhatsApp Us</a>
-                        <a id="modal-call" href="tel:+918090202020" class="px-1 py-3 rounded-xl border border-stone-300 text-center text-[10px] md:text-sm tracking-tight md:tracking-widest uppercase hover:bg-stone-900 hover:text-stone-50 hover:border-stone-900 transition-colors flex items-center justify-center">Call Now</a>
-                        <a id="modal-email" href="mailto:newabhaitravels@yahoo.co.in" class="px-1 py-3 rounded-xl border border-stone-300 text-center text-[10px] md:text-sm tracking-tight md:tracking-widest uppercase hover:bg-stone-900 hover:text-stone-50 hover:border-stone-900 transition-colors flex items-center justify-center">Email Us</a>
+                        <a id="modal-whatsapp" href="https://wa.me/918090202020" target="_blank" rel="noopener" class="px-1 py-3 rounded-md bg-stone-900 text-stone-50 text-center text-[10px] md:text-xs tracking-tight uppercase hover:opacity-80 transition-opacity flex items-center justify-center whitespace-nowrap">WhatsApp Us</a>
+                        <a id="modal-call" href="tel:+918090202020" class="px-1 py-3 rounded-md border border-stone-300 text-center text-[10px] md:text-xs tracking-tight uppercase hover:bg-stone-900 hover:text-stone-50 hover:border-stone-900 transition-colors flex items-center justify-center whitespace-nowrap">Call Now</a>
+                        <a id="modal-email" href="mailto:newabhaitravels@yahoo.co.in" class="px-1 py-3 rounded-md border border-stone-300 text-center text-[10px] md:text-xs tracking-tight uppercase hover:bg-stone-900 hover:text-stone-50 hover:border-stone-900 transition-colors flex items-center justify-center whitespace-nowrap">Email Us</a>
                     </div>
                 </div>
             </div>
@@ -1077,30 +1149,39 @@
         // --- Real fleet data ---
         const carData = [
             { id: 'c1', category: 'car', type: 'mpv', name: 'Toyota Innova Crysta', label: 'MPV', seats: 7, trans: 'Manual', ac: true, fuel: 'Diesel', isPopular: true, images: ['Crysta/1.jpg', 'Crysta/2.jpg', 'Crysta/3.jpg', 'Crysta/4.jpg', 'Crysta/5.jpg'] },
-            { id: 'c2', category: 'car', type: 'sedan', name: 'Maruti Dzire', label: 'Sedan', seats: 4, trans: 'Manual', ac: true, fuel: 'Petrol', isPopular: false, images: ['DZIRE/25.jpg', 'DZIRE/26.jpg', 'DZIRE/27.jpg', 'DZIRE/28.jpg'] },
-            { id: 'c3', category: 'car', type: 'hatchback', name: 'Maruti WagonR', label: 'Hatchback', seats: 3, trans: 'Manual', ac: true, fuel: 'Petrol', isPopular: false, images: ['WagonR/7.jpg', 'WagonR/8.jpg', 'WagonR/9.jpg', 'WagonR/10.jpg'] },
-            { id: 'c4', category: 'car', type: 'mpv', name: 'Maruti Ertiga', label: 'MPV', seats: 6, trans: 'Manual', ac: true, fuel: 'Petrol', isPopular: false, images: ['Ertiga/20.jpg', 'Ertiga/21.jpg', 'Ertiga/22.jpg', 'Ertiga/23.jpg', 'Ertiga/24.jpg'] },
-            { id: 'c5', category: 'car', type: 'suv', name: 'Toyota Fortuner', label: 'SUV', seats: 7, trans: 'Automatic', ac: true, fuel: 'Diesel', isPopular: true, images: ['Fortuner/12.jpg', 'Fortuner/13.jpg', 'Fortuner/14.jpg', 'Fortuner/15.jpg'] },
-            { id: 'c6', category: 'car', type: 'suv', name: 'Mahindra XUV300', label: 'SUV', seats: 5, trans: 'Manual', ac: true, fuel: 'Petrol', isPopular: false, images: ['XUV300/16.jpg', 'XUV300/17.jpg', 'XUV300/18.jpg', 'XUV300/19.jpg'] },
+            { id: 'c2', category: 'car', type: 'sedan', name: 'Maruti Dzire', label: 'Sedan', seats: 4, trans: 'Manual', ac: true, fuel: 'CNG', isPopular: false, images: ['DZIRE/25.jpg', 'DZIRE/26.jpg', 'DZIRE/27.jpg', 'DZIRE/28.jpg'] },
+            { id: 'c3', category: 'car', type: 'hatchback', name: 'Maruti WagonR', label: 'Hatchback', seats: 3, trans: 'Manual', ac: true, fuel: 'CNG', isPopular: false, images: ['wagonr-2/51.jpg', 'wagonr-2/51.jpg', 'wagonr-2/50.jpg', 'wagonr-2/52.jpg'] },
+            { id: 'c4', category: 'car', type: 'mpv', name: 'Maruti Ertiga', label: 'MPV', seats: 6, trans: 'Manual', ac: true, fuel: 'CNG', isPopular: false, images: ['Ertiga/20.jpg', 'Ertiga/21.jpg', 'Ertiga/22.jpg', 'Ertiga/23.jpg', 'Ertiga/24.jpg'] },
+            { id: 'c5', category: 'car', type: 'suv', name: 'Toyota Fortuner', label: 'SUV', seats: 7, trans: 'Automatic', ac: true, fuel: 'Diesel', isPopular: true, images: ['fortuner-2/44.jpg', 'fortuner-2/44.jpg', 'fortuner-2/42.jpg', 'fortuner-2/43.jpg', 'fortuner-2/45.jpg'] },
+            { id: 'c6', category: 'car', type: 'suv', name: 'Mahindra XUV300', label: 'SUV', seats: 5, trans: 'Manual', ac: true, fuel: 'Petrol', isPopular: false, images: ['xuv300-3/47.jpg', 'xuv300-3/47.jpg', 'xuv300-3/46.jpg', 'xuv300-3/48.jpg'] },
         ];
 
-        // One card per vehicle TYPE (not per seat configuration): each carries a `variants` list
-        // of the seat capacities that vehicle is actually available in. The card shows all of them
-        // at a glance; the modal lets a visitor switch between them to see each one's own photos.
+        // Shared by every Tempo Traveller card/modal below — same amenities across all three seat
+        // configurations, so defined once here rather than repeated on each entry.
+        const TEMPO_FEATURES = [
+            { icon: 'ph-snowflake', label: 'Fully Air-Conditioned' },
+            { icon: 'ph-television', label: 'LED TV / Entertainment Screen' },
+            { icon: 'ph-speaker-high', label: 'Music System' },
+            { icon: 'ph-armchair', label: 'Comfortable Push-Back Seats' },
+            { icon: 'ph-plug-charging', label: 'Mobile Charging Points' },
+            { icon: 'ph-suitcase-rolling', label: 'Ample Luggage Space' },
+            { icon: 'ph-lightbulb', label: 'Reading / Ambient Lights' },
+            { icon: 'ph-first-aid-kit', label: 'First-Aid Kit' },
+            { icon: 'ph-map-pin', label: 'GPS Tracking' },
+            { icon: 'ph-steering-wheel', label: 'Experienced Driver' },
+        ];
+
+        // Tempo Travellers: one card per seat configuration (each is different enough — mood lighting,
+        // curtains, layout — to deserve its own card and photos, not a switcher inside one modal).
+        // Bus stays a single combined card below: fewer real distinguishing details between the three
+        // sizes, and no dedicated photos yet, so a seat-picker inside one card fits better there.
         const busData = [
+            { id: 'b1', category: 'bus', type: 'traveller', name: 'Tempo Traveller (17 Seater)', label: 'Tempo Traveller', seats: 17, ac: true, idealFor: 'TV, recliners & mood lighting', isPopular: false, images: ['tempo17-2/61.jpg', 'tempo17-2/61.jpg', 'tempo17-2/62.jpg', 'tempo17-2/63.jpg'], features: TEMPO_FEATURES },
+            { id: 'b2', category: 'bus', type: 'traveller', name: 'Tempo Traveller (21 Seater, Our Special)', label: 'Tempo Traveller', seats: 21, ac: true, idealFor: 'Our most requested configuration', isPopular: true, images: ['tempo21-2/58.jpg', 'tempo21-2/58.jpg', 'tempo21-2/56.jpg', 'tempo21-2/57.jpg', 'tempo21-2/59.jpg', 'tempo21-2/60.jpg'], features: TEMPO_FEATURES },
+            { id: 'b3', category: 'bus', type: 'traveller', name: 'Tempo Traveller (26 Seater)', label: 'Tempo Traveller', seats: 26, ac: true, idealFor: 'TV, recliners, curtains & lighting', isPopular: false, images: ['tempo26-2/66.jpg', 'tempo26-2/66.jpg', 'tempo26-2/67.jpg', 'tempo26-2/68.jpg'], features: TEMPO_FEATURES },
             {
-                id: 'b1', category: 'bus', type: 'traveller', name: 'Tempo Traveller', label: 'Tempo Traveller', ac: true, isPopular: true,
-                // Card-level photo set (the whole tempo lineup together) — shown as the fleet card's
-                // thumbnail. Each seat variant below carries its own separate photos for the modal.
-                images: ['tempo-collectve/35.jpg', 'tempo-collectve/34.jpg', 'tempo-collectve/36.jpg', 'tempo-collectve/37.jpg', 'tempo-collectve/38.jpg'],
-                variants: [
-                    { seats: 17, idealFor: 'TV, recliners & mood lighting', images: ['tempo17/29.jpg', 'tempo17/30.jpg'] },
-                    { seats: 21, idealFor: 'Our most requested configuration', images: ['tempo21/31.jpg', 'tempo21/32.jpg'], isPopular: true },
-                    { seats: 26, idealFor: 'TV, recliners, curtains & lighting', images: ['tempo26/33.jpg', 'tempo26/34.jpg'] },
-                ]
-            },
-            {
-                id: 'b2', category: 'bus', type: 'coach', name: 'Bus', label: 'Bus', ac: true, isPopular: false,
+                id: 'b4', category: 'bus', type: 'coach', name: 'Bus', label: 'Bus', ac: true, isPopular: false,
+                images: ['bus/54.jpg', 'bus/54.jpg', 'bus/52.jpg', 'bus/53.jpg', 'bus/55.jpg'],
                 variants: [
                     { seats: 45, idealFor: 'School & college trips', image: 'https://placehold.co/800x600/1A1A1A/F9F9F8?text=Bus+45-Seater' },
                     { seats: 55, idealFor: 'Corporate events & tours', image: 'https://placehold.co/800x600/1A1A1A/F9F9F8?text=Bus+55-Seater' },
@@ -1216,12 +1297,12 @@
 
             document.getElementById('filter-container').innerHTML = types.map(t => {
                 const active = t === state.type;
-                return `<button onclick="setType('${t}', false)" class="fleet-btn px-4 py-2 rounded-full text-sm font-medium border transition-colors ${active ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-300 hover:border-stone-900 hover:text-stone-900'}">${labels[t]}</button>`;
+                return `<button onclick="setType('${t}', false)" class="fleet-btn px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${active ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-300 hover:border-stone-900 hover:text-stone-900'}">${labels[t]}</button>`;
             }).join('');
 
             document.getElementById('filter-container-mobile').innerHTML = types.map(t => {
                 const active = t === state.type;
-                return `<button onclick="setType('${t}', true)" class="fleet-btn px-5 py-2.5 rounded-full text-sm border ${active ? 'bg-stone-900 text-stone-50 border-stone-900' : 'border-stone-300 text-stone-500'}">${labels[t]}</button>`;
+                return `<button onclick="setType('${t}', true)" class="fleet-btn px-5 py-2.5 rounded-xl text-sm border ${active ? 'bg-stone-900 text-stone-50 border-stone-900' : 'border-stone-300 text-stone-500'}">${labels[t]}</button>`;
             }).join('');
 
             const capacities = [...new Set(data.flatMap(v => v.variants ? v.variants.map(x => x.seats) : [v.seats]))].sort((a, b) => a - b);
@@ -1231,7 +1312,7 @@
 
             document.getElementById('capacity-container-mobile').innerHTML = ['all', ...capacities].map(c => {
                 const active = String(c) === String(state.capacity);
-                return `<button onclick="setCapacity('${c}')" class="px-5 py-2.5 rounded-full text-sm border ${active ? 'bg-stone-900 text-stone-50 border-stone-900' : 'border-stone-300 text-stone-500'}">${c === 'all' ? 'Any' : c + ' Seater'}</button>`;
+                return `<button onclick="setCapacity('${c}')" class="px-5 py-2.5 rounded-xl text-sm border ${active ? 'bg-stone-900 text-stone-50 border-stone-900' : 'border-stone-300 text-stone-500'}">${c === 'all' ? 'Any' : c + ' Seater'}</button>`;
             }).join('');
 
             updateFilterIndicators();
@@ -1302,7 +1383,7 @@
 
             items.forEach((item, index) => {
                 const card = document.createElement('div');
-                card.className = 'fleet-card bg-white border border-stone-200 rounded-2xl overflow-hidden cursor-pointer shadow-sm hover:shadow-lg hover:border-stone-300 transition-all duration-300';
+                card.className = 'fleet-card bg-white border border-stone-200 rounded-lg overflow-hidden cursor-pointer shadow-sm hover:shadow-lg hover:border-stone-300 transition-all duration-300';
                 card.setAttribute('role', 'button');
                 card.setAttribute('tabindex', '0');
                 card.onclick = () => openModal(item.id, item.category);
@@ -1317,24 +1398,24 @@
                 const thumb = thumbSource.images ? thumbSource.images[0] : thumbSource.image;
                 const seatsLabel = item.variants ? item.variants.map(v => v.seats).join(' / ') + ' Seats' : `${item.seats} Seats`;
                 const capacityChips = item.variants
-                    ? item.variants.map(v => `<span class="fleet-chip inline-flex items-center gap-1.5 bg-stone-100 text-stone-700 text-xs font-medium px-2.5 py-1 rounded-full"><i class="ph ph-user"></i> ${v.seats} Seater</span>`).join('')
-                    : `<span class="fleet-chip inline-flex items-center gap-1.5 bg-stone-100 text-stone-700 text-xs font-medium px-2.5 py-1 rounded-full"><i class="ph ph-user"></i> ${item.seats} Seats</span>`;
+                    ? item.variants.map(v => `<span class="fleet-chip inline-flex items-center gap-1.5 bg-stone-100 text-stone-700 text-xs font-medium px-2.5 py-1 rounded-md"><i class="ph ph-user"></i> ${v.seats} Seater</span>`).join('')
+                    : `<span class="fleet-chip inline-flex items-center gap-1.5 bg-stone-100 text-stone-700 text-xs font-medium px-2.5 py-1 rounded-md"><i class="ph ph-user"></i> ${item.seats} Seats</span>`;
                 card.innerHTML = `
                     <div class="relative aspect-[4/3] bg-stone-200 overflow-hidden">
                         <img src="${thumb}" alt="${item.name}, ${item.label}, ${seatsLabel}" loading="lazy" decoding="async" width="800" height="600" class="w-full h-full object-cover editorial-img">
-                        ${item.isPopular ? `<span class="absolute top-3 left-3 bg-amber-400 text-stone-900 text-[10px] font-bold tracking-wide uppercase px-2.5 py-1 rounded-full shadow-sm">★ Popular</span>` : ''}
-                        <span class="fleet-index-badge absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-stone-900 text-[10px] font-semibold px-2 py-1 rounded-full">${String(index + 1).padStart(2, '0')} / ${total}</span>
+                        ${item.isPopular ? `<span class="absolute top-3 left-3 bg-amber-400 text-stone-900 text-[10px] font-bold tracking-wide uppercase px-2.5 py-1 rounded-md shadow-sm">★ Popular</span>` : ''}
+                        <span class="fleet-index-badge absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-stone-900 text-[10px] font-semibold px-2 py-1 rounded-md tabular-nums">${String(index + 1).padStart(2, '0')} / ${total}</span>
                     </div>
                     <div class="p-4">
                         <h4 class="fleet-name font-display text-xl font-semibold text-stone-900 mb-3 leading-tight">${item.name}</h4>
                         <div class="flex items-center gap-2 mb-4 flex-wrap">
-                            <span class="fleet-chip inline-flex items-center gap-1.5 bg-stone-100 text-stone-700 text-xs font-medium px-2.5 py-1 rounded-full"><i class="ph ${typeIcon}"></i> ${item.label}</span>
+                            <span class="fleet-chip inline-flex items-center gap-1.5 bg-stone-100 text-stone-700 text-xs font-medium px-2.5 py-1 rounded-md"><i class="ph ${typeIcon}"></i> ${item.label}</span>
                             ${capacityChips}
-                            <span class="fleet-chip inline-flex items-center gap-1.5 bg-stone-100 text-stone-700 text-xs font-medium px-2.5 py-1 rounded-full"><i class="ph ph-snowflake"></i> ${item.ac ? 'AC' : 'Non-AC'}</span>
+                            <span class="fleet-chip inline-flex items-center gap-1.5 bg-stone-100 text-stone-700 text-xs font-medium px-2.5 py-1 rounded-md"><i class="ph ph-snowflake"></i> ${item.ac ? 'AC' : 'Non-AC'}</span>
                         </div>
                         <div class="fleet-divider flex justify-between items-center pt-3 border-t border-stone-100">
                             <span class="fleet-status inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>On Enquiry</span>
-                            <span class="fleet-view-btn inline-flex items-center gap-1.5 bg-stone-900 text-white text-xs font-semibold uppercase tracking-wide px-4 py-2 rounded-full">View Details <i class="ph ph-arrow-right"></i></span>
+                            <span class="fleet-view-btn inline-flex items-center gap-1.5 bg-stone-900 text-white text-xs font-semibold uppercase tracking-wide px-4 py-2 rounded-xl">View Details <i class="ph ph-arrow-right"></i></span>
                         </div>
                     </div>
                 `;
@@ -1415,13 +1496,28 @@
             modalImg.src = src;
         }
 
-        // Switches the modal's main image and moves the active-border highlight to the clicked thumb.
-        function setModalImage(src, btn) {
+        // The full-size photo set for whatever's currently open in the modal (or its selected
+        // variant), plus which one is on screen right now. Shared between the modal's own
+        // thumbnails and the fullscreen lightbox so the two stay in sync either way round.
+        let modalImageList = [];
+        let modalImageIndex = 0;
+
+        // Switches the modal's (and, if open, the lightbox's) main image to modalImageList[index]
+        // and moves the active-border highlight to the matching thumb.
+        function showModalPhoto(index) {
+            if (!modalImageList.length) return;
+            modalImageIndex = ((index % modalImageList.length) + modalImageList.length) % modalImageList.length;
+            const src = modalImageList[modalImageIndex];
             setMainImage(src);
-            document.querySelectorAll('.modal-thumb').forEach(t => t.classList.remove('border-stone-900'));
-            document.querySelectorAll('.modal-thumb').forEach(t => t.classList.add('border-transparent'));
-            btn.classList.remove('border-transparent');
-            btn.classList.add('border-stone-900');
+            document.querySelectorAll('.modal-thumb').forEach((t, i) => {
+                t.classList.toggle('border-stone-900', i === modalImageIndex);
+                t.classList.toggle('border-transparent', i !== modalImageIndex);
+            });
+            const lightbox = document.getElementById('image-lightbox');
+            if (!lightbox.classList.contains('hidden')) {
+                document.getElementById('lightbox-img').src = src;
+                updateLightboxNav();
+            }
         }
 
         // Fills in the photo + gallery thumbnails for whichever variant (or, for cars, the item
@@ -1432,22 +1528,68 @@
             const source = variant || item;
             const modalImg = document.getElementById('modal-img');
             const galleryEl = document.getElementById('modal-gallery');
+            modalImageIndex = 0;
             if (source.images && source.images.length > 1) {
                 const galleryImages = source.images.slice(1);
+                modalImageList = galleryImages;
                 setMainImage(galleryImages[0]);
                 galleryEl.innerHTML = galleryImages.map((src, i) => `
-                    <button type="button" onclick="setModalImage('${src}', this)" aria-label="Show photo ${i + 1}" class="modal-thumb w-14 h-14 rounded-lg overflow-hidden border-2 ${i === 0 ? 'border-stone-900' : 'border-transparent'} shrink-0">
+                    <button type="button" onclick="showModalPhoto(${i})" aria-label="Show photo ${i + 1}" class="modal-thumb w-14 h-14 rounded overflow-hidden border-2 ${i === 0 ? 'border-stone-900' : 'border-transparent'} shrink-0">
                         <img src="${src}" alt="" class="w-full h-full object-cover">
                     </button>
                 `).join('');
                 galleryEl.classList.remove('hidden');
             } else {
+                modalImageList = [source.image];
                 setMainImage(source.image);
                 galleryEl.classList.add('hidden');
                 galleryEl.innerHTML = '';
             }
             modalImg.alt = item.name;
         }
+
+        // --- Fullscreen Image Lightbox ---
+        function openLightbox() {
+            if (!modalImageList.length) return;
+            document.getElementById('lightbox-img').src = modalImageList[modalImageIndex];
+            document.getElementById('lightbox-img').alt = document.getElementById('modal-img').alt;
+            updateLightboxNav();
+            const lightbox = document.getElementById('image-lightbox');
+            lightbox.classList.remove('hidden');
+            lightbox.classList.add('flex');
+        }
+
+        function closeLightbox() {
+            const lightbox = document.getElementById('image-lightbox');
+            lightbox.classList.add('hidden');
+            lightbox.classList.remove('flex');
+        }
+
+        function stepLightbox(delta) {
+            showModalPhoto(modalImageIndex + delta);
+        }
+
+        // Shows/hides the prev/next arrows and photo-count badge — only meaningful when there's
+        // more than one photo to page through.
+        function updateLightboxNav() {
+            const multi = modalImageList.length > 1;
+            const prev = document.getElementById('lightbox-prev');
+            const next = document.getElementById('lightbox-next');
+            const counter = document.getElementById('lightbox-counter');
+            prev.classList.toggle('hidden', !multi);
+            prev.classList.toggle('flex', multi);
+            next.classList.toggle('hidden', !multi);
+            next.classList.toggle('flex', multi);
+            counter.classList.toggle('hidden', !multi);
+            counter.textContent = multi ? `${modalImageIndex + 1} / ${modalImageList.length}` : '';
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (document.getElementById('image-lightbox').classList.contains('hidden')) return;
+            if (e.key === 'Escape') closeLightbox();
+            if (e.key === 'ArrowLeft') stepLightbox(-1);
+            if (e.key === 'ArrowRight') stepLightbox(1);
+        });
 
         // Renders the seat-capacity options for vehicles that come in multiple configurations, as
         // plain slash-separated text — informational only, not clickable — hidden entirely for
@@ -1503,6 +1645,20 @@
                 document.getElementById('modal-stat4-value').textContent = (defaultVariant || item).idealFor;
             }
 
+            const featuresEl = document.getElementById('modal-features');
+            if (item.features) {
+                document.getElementById('modal-features-grid').innerHTML = item.features.map(f => `
+                    <div class="flex items-center gap-2 text-sm text-stone-700">
+                        <i class="ph ${f.icon} text-stone-500 text-base shrink-0"></i>
+                        <span>${f.label}</span>
+                    </div>
+                `).join('');
+                featuresEl.classList.remove('hidden');
+            } else {
+                featuresEl.classList.add('hidden');
+                document.getElementById('modal-features-grid').innerHTML = '';
+            }
+
             const waMessage = `Hi, I'm interested in the ${item.name} (${item.label}). Could you share the rate and availability?`;
             document.getElementById('modal-whatsapp').href = `https://wa.me/918090202020?text=${encodeURIComponent(waMessage)}`;
             const emailBody = `Hi, I'm interested in the ${item.name} (${item.label}). Could you share the rate and availability?`;
@@ -1512,13 +1668,56 @@
             modal.classList.remove('hidden');
             modal.classList.add('flex');
             document.body.style.overflow = 'hidden';
+            syncModalPhotoHeight();
         }
+
+        // On md+, sizes the photo column's height to match the details column's own natural
+        // (unstretched) height, so the card is exactly as tall as the details content needs — no blank
+        // space below a short photo. The photo's width then simply follows from that height via its
+        // aspect-ratio, so it's never cropped or padded either way. Capped so the derived width can't
+        // exceed the photo column's own md:max-w-[55%]: without that cap, a vehicle with enough content
+        // to need more height than a 4:3 photo could fit in 55% of the modal's width would force a
+        // non-4:3 box. Setting the photo's height changes its own width (via the aspect ratio), which
+        // changes how much width is left for the details column (flex-1) — which can change how much its
+        // text wraps and therefore its natural height. Two passes settles this: the first gets close, the
+        // second re-measures at the width the first pass actually produced and corrects for it.
+        //
+        // The details column is then pinned to that exact same height too (not just left at its own
+        // natural height), so the two columns always end flush — for a car with a short spec sheet
+        // that's a plain visual match, and for a tempo/bus with a features list long enough to exceed it,
+        // it scrolls internally instead of stretching the card. That's the intended tradeoff for those:
+        // showing the full-height, uncropped photo matters more than fitting every feature without a
+        // scroll. Re-run on resize, since the 768px stacked/columns switch changes which layout applies.
+        function syncModalPhotoHeight() {
+            const photoCol = document.getElementById('modal-photo-col');
+            const detailsCol = document.getElementById('modal-details-col');
+            const modalContent = document.getElementById('modal-content');
+            if (!photoCol || !detailsCol || !modalContent) return;
+            photoCol.style.height = '';
+            detailsCol.style.maxHeight = '';
+            if (window.innerWidth < 768) return;
+            const maxWidthPx = modalContent.getBoundingClientRect().width * 0.55;
+            const maxHeightFromWidth = maxWidthPx / (4 / 3);
+            let targetHeight;
+            for (let i = 0; i < 2; i++) {
+                const detailsHeight = detailsCol.getBoundingClientRect().height;
+                targetHeight = Math.max(Math.min(detailsHeight, maxHeightFromWidth), 240);
+                photoCol.style.height = targetHeight + 'px';
+            }
+            detailsCol.style.maxHeight = targetHeight + 'px';
+        }
+
+        window.addEventListener('resize', () => {
+            const modal = document.getElementById('vehicle-modal');
+            if (modal && !modal.classList.contains('hidden')) syncModalPhotoHeight();
+        });
 
         function closeModal() {
             const modal = document.getElementById('vehicle-modal');
             modal.classList.add('hidden');
             modal.classList.remove('flex');
             document.body.style.overflow = '';
+            closeLightbox();
         }
 
         function toggleMobileMenu() {
