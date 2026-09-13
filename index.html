@@ -483,17 +483,20 @@
                     <span class="block whitespace-nowrap">Cars On Rent.</span>
                     <span class="block">Anytime.</span>
                 </h1>
-                <div class="hero-fade-up hero-fade-up-d3 mt-8 md:mt-16 flex flex-col items-center md:flex-row md:items-end justify-center md:justify-between gap-8">
+                <div class="hero-fade-up hero-fade-up-d3 mt-8 md:mt-16 flex flex-col items-center lg:flex-row lg:items-end justify-center lg:justify-between gap-8">
                     <!-- The subline and the trust stats sit side by side on one line on desktop (the
                          stats used to be a separate strip below, with its own top border, feeling
                          disconnected from the rest of the copy) — stats to the right of the subline
                          text, not underneath it — with the Book Now button on the far side of the row.
-                         Still stacks on mobile, where there isn't width to spare for all three. -->
-                    <div class="flex flex-col md:flex-row items-center gap-6 md:gap-10">
+                         Still stacks below lg: at md (768–1023) there isn't width left for the subline
+                         once the stats and Book Now also need room in the same row — it was wrapping to
+                         one word per line — so this row only goes side-by-side once there's actually
+                         space for it. -->
+                    <div class="flex flex-col lg:flex-row items-center gap-6 lg:gap-10">
                         <p class="font-normal text-lg md:text-xl max-w-md leading-relaxed text-stone-700">
                             Cars, tempo travellers and buses, considered rentals for every journey, arranged since 2000.
                         </p>
-                        <div class="flex items-center justify-center md:justify-start gap-3 md:gap-6 max-w-[260px] md:max-w-none">
+                        <div class="flex items-center justify-center lg:justify-start gap-3 md:gap-6 max-w-[260px] lg:max-w-none">
                             <div>
                                 <p class="font-display text-2xl md:text-3xl font-bold text-stone-900 leading-none tabular-nums">25+</p>
                                 <p class="text-[9px] md:text-[10px] tracking-widest uppercase text-stone-500 mt-1">Years</p>
@@ -508,14 +511,19 @@
                                 <p class="font-display text-2xl md:text-3xl font-bold text-stone-900 leading-none tabular-nums">24/7</p>
                                 <p class="text-[9px] md:text-[10px] tracking-widest uppercase text-stone-500 mt-1">Support</p>
                             </div>
-                            <div class="w-px h-8 bg-stone-900/15 hidden md:block" aria-hidden="true"></div>
-                            <div class="hidden md:block">
+                            <div class="w-px h-8 bg-stone-900/15 hidden lg:block" aria-hidden="true"></div>
+                            <div class="hidden lg:block">
                                 <p class="font-display text-3xl font-bold text-stone-900 leading-none">AC</p>
                                 <p class="text-[10px] tracking-widest uppercase text-stone-500 mt-1">&amp; Non-AC</p>
                             </div>
                         </div>
                     </div>
-                    <a href="#fleet" class="group inline-flex items-center gap-3 bg-stone-900 text-stone-50 text-sm font-semibold uppercase tracking-widest px-6 py-3.5 rounded-xl hover:opacity-85 transition-opacity w-fit shrink-0">
+                    <!-- lg:mr-20: the floating WhatsApp button is fixed at bottom-right (right-6, 56px
+                         wide) and this row shares that same bottom-right corner once it goes side-by-side
+                         at lg (hero-content has no max-width, so the button's edge always lands a fixed
+                         distance from the viewport edge regardless of screen width) — without this
+                         clearance they overlap at every desktop width, not just one breakpoint. -->
+                    <a href="#fleet" class="group inline-flex items-center gap-3 bg-stone-900 text-stone-50 text-sm font-semibold uppercase tracking-widest px-6 py-3.5 rounded-xl hover:opacity-85 transition-opacity w-fit shrink-0 lg:mr-20">
                         Book Now <i class="ph ph-arrow-down group-hover:translate-y-2 transition-transform duration-500"></i>
                     </a>
                 </div>
@@ -1774,9 +1782,17 @@
                 navLinks.forEach(link => link.classList.toggle('active', link.getAttribute('href') === '#' + id));
             };
 
+            const lastSection = sections[sections.length - 1];
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
-                    if (entry.isIntersecting) setActive(entry.target.id);
+                    if (entry.isIntersecting) {
+                        setActive(entry.target.id);
+                    } else if (entry.target === lastSection && entry.boundingClientRect.top < 0) {
+                        // Scrolled on past the last linked section (Testimonials) into Feedback/Get In
+                        // Touch/the footer, none of which have their own nav link — without this the
+                        // pill just keeps showing Testimonials as "current" for the rest of the page.
+                        navLinks.forEach(link => link.classList.remove('active'));
+                    }
                 });
             }, { rootMargin: '-45% 0px -45% 0px', threshold: 0 });
 
