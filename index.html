@@ -208,13 +208,13 @@
            indicator now, instead of sitting duplicated right on top of a second, native one on browsers
            that do support styling it (desktop, Android Chrome). */
         .fleet-grid::-webkit-scrollbar { display: none; }
-        .fleet-card { flex: 0 0 auto; scroll-snap-align: start; width: min(80vw, 300px); }
+        .fleet-card, .fleet-request-card { flex: 0 0 auto; scroll-snap-align: start; width: min(80vw, 300px); }
         @media (min-width: 768px) {
             /* auto-fill (not auto-fit): keeps card width consistent even when a filter leaves only
                one or two results — auto-fit would collapse the unused column tracks and stretch
                the remaining card(s) to fill the whole row instead. */
             .fleet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 2rem; overflow-x: visible; padding: 0; margin: 0; }
-            .fleet-card { width: auto; }
+            .fleet-card, .fleet-request-card { width: auto; }
         }
         @keyframes swipe-hint-bounce {
             0%, 100% { transform: translateX(0); }
@@ -583,6 +583,8 @@
                     </button>
                 </div>
 
+                <p id="empty-state" class="hidden text-stone-500 font-light pb-6">No listed vehicle matches that filter &mdash; but tell us what you need below and we'll see what we can arrange.</p>
+
                 <div class="relative">
                     <div id="fleet-grid" class="fleet-grid" aria-live="polite"></div>
                     <!-- Mobile only: an animated hand demonstrates the swipe rather than just describing
@@ -598,7 +600,6 @@
                 <div class="md:hidden relative h-2 bg-stone-200 rounded-full overflow-hidden mt-4" aria-hidden="true">
                     <div id="fleet-scroll-thumb" class="absolute inset-y-0 left-0 h-full bg-stone-900 rounded-full" style="width: 100%;"></div>
                 </div>
-                <p id="empty-state" class="hidden text-stone-500 font-light py-16">No vehicles match that filter right now. <a href="#book" class="link-underline text-stone-900">Enquire</a> and we'll see what we can arrange.</p>
 
                 <!-- Mobile only: hints at the swipe gesture the row above uses. -->
                 <p id="swipe-hint-label" class="md:hidden flex items-center justify-center gap-2 mt-4 text-xs tracking-widest uppercase text-stone-500" aria-hidden="true">
@@ -1393,6 +1394,7 @@
 
             if (items.length === 0) {
                 empty.classList.remove('hidden');
+                grid.appendChild(buildRequestCard());
                 updateFleetScrollThumb();
                 return;
             }
@@ -1444,7 +1446,42 @@
                 cardPreloadObserver.observe(card);
             });
 
+            grid.appendChild(buildRequestCard());
             updateFleetScrollThumb();
+        }
+
+        // Always the last card in the row (and the only one when a filter matches nothing), so
+        // someone who browses to the end without finding their vehicle has a next step right where
+        // they stopped. Whatever they type is put into the WhatsApp message, so the conversation
+        // opens with the vehicle already named. Copy promises a reply, never availability.
+        function buildRequestCard() {
+            const card = document.createElement('div');
+            card.className = 'fleet-request-card bg-stone-900 text-stone-50 border border-stone-900 rounded-lg overflow-hidden shadow-sm flex flex-col';
+            card.innerHTML = `
+                <div class="p-5 pb-4 flex-1 flex flex-col">
+                    <span class="w-10 h-10 rounded-lg bg-stone-50/10 flex items-center justify-center text-xl mb-4" aria-hidden="true"><i class="ph ph-magnifying-glass"></i></span>
+                    <h4 class="font-display text-xl font-semibold leading-tight mb-2">Can't find your vehicle?</h4>
+                    <p class="text-sm text-stone-300 font-light leading-relaxed mb-5">Tell us the car or bus you have in mind. We'll check whether it can be arranged and get back to you with availability and rate.</p>
+                    <form class="request-form mt-auto" novalidate>
+                        <label for="request-vehicle" class="block text-[11px] font-semibold uppercase tracking-wider text-stone-400 mb-2">Vehicle you're looking for</label>
+                        <input id="request-vehicle" name="vehicle" type="text" maxlength="80" autocomplete="off" placeholder="e.g. Innova Hycross" class="w-full bg-stone-50/10 border border-stone-50/20 rounded-lg px-3 py-2.5 text-base md:text-sm text-stone-50 placeholder:text-stone-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:border-transparent mb-3">
+                        <button type="submit" class="w-full inline-flex items-center justify-center gap-2 bg-stone-50 text-stone-900 text-xs font-semibold uppercase tracking-wide px-4 py-3 rounded-xl hover:bg-amber-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-900"><i class="ph-fill ph-whatsapp-logo text-base"></i> Ask on WhatsApp</button>
+                    </form>
+                </div>
+                <div class="px-5 py-3 border-t border-stone-50/15 flex items-center justify-between text-xs">
+                    <span class="text-stone-400">Prefer to talk?</span>
+                    <a href="tel:+918090202020" class="inline-flex items-center gap-1.5 font-semibold text-stone-50 hover:text-amber-400 transition-colors"><i class="ph ph-phone"></i> +91 80902 02020</a>
+                </div>
+            `;
+            card.querySelector('.request-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const vehicle = card.querySelector('#request-vehicle').value.trim();
+                const msg = vehicle
+                    ? `Hi, I'm looking for a ${vehicle}, which isn't listed on your website. Could you check if it can be arranged?`
+                    : `Hi, I'm looking for a vehicle that isn't listed on your website. Could you help?`;
+                window.open(`https://wa.me/918090202020?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+            });
+            return card;
         }
 
         // Custom, always-visible scroll indicator for the mobile card row — a real element rather
